@@ -1,4 +1,4 @@
-# Bipe
+# Storage
 
 Controle de estoque com leitura de código de barras e frente de caixa para mercado de
 bairro. Roda no PC que a loja já tem, num processo só, e **continua vendendo com a
@@ -14,21 +14,21 @@ Plano completo do projeto: https://claude.ai/artifact/BRcVLePSwNgW8ro6ZEQhUa
 ## Como rodar
 
 ```bash
-dotnet run --project src/Bipe.Web
+dotnet run --project src/Storage.Web
 ```
 
-Em desenvolvimento o banco é criado em `src/Bipe.Web/.data/bipe.db` (configurável por
-`Bipe:DataDirectory`). Em produção fica em `%ProgramData%\Bipe`, porque o app roda como
+Em desenvolvimento o banco é criado em `src/Storage.Web/.data/storage.db` (configurável por
+`Storage:DataDirectory`). Em produção fica em `%ProgramData%\Storage`, porque o app roda como
 serviço da máquina e não como dado de um usuário.
 
 ## Estrutura
 
 | Projeto | Papel |
 | --- | --- |
-| `Bipe.Domain` | Entidades, value objects e regras puras. **Sem dependência nenhuma.** |
-| `Bipe.Application` | Casos de uso e interfaces de repositório |
-| `Bipe.Infrastructure` | EF Core, SQLite, migrations, jobs |
-| `Bipe.Web` | Blazor Server, Kestrel, composição |
+| `Storage.Domain` | Entidades, value objects e regras puras. **Sem dependência nenhuma.** |
+| `Storage.Application` | Casos de uso e interfaces de repositório |
+| `Storage.Infrastructure` | EF Core, SQLite, migrations, jobs |
+| `Storage.Web` | Blazor Server, Kestrel, composição |
 
 As duas regras que decidem dinheiro do lojista — resolução de desconto e consumo FEFO —
 ficam no `Domain`, puras e testáveis sem banco.

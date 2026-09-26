@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Storage.Application/Storage.Application.csproj" />
+    <Project Path="src/Storage.Domain/Storage.Domain.csproj" />
+    <Project Path="src/Storage.Infrastructure/Storage.Infrastructure.csproj" />
+    <Project Path="src/Storage.Web/Storage.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Storage.Domain.Tests/Storage.Domain.Tests.csproj" />
+    <Project Path="tests/Storage.Integration.Tests/Storage.Integration.Tests.csproj" />
+  </Folder>
+</Solution>

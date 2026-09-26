@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <PropertyGroup Label="Product">
-    <Product>Bipe</Product>
+    <Product>Storage</Product>
     <Version>0.1.0</Version>
     <Authors>Rafael dos Santos</Authors>
     <Copyright>Copyright (c) Rafael dos Santos</Copyright>
