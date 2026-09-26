@@ -1,0 +1,39 @@
+# Build output
+bin/
+obj/
+publish/
+dist/
+artifacts/
+TestResults/
+
+# IDE
+.vs/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+
+# Local database files - never versioned, they hold the store's real data
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Local secrets and certificates (see the exposed-credential incident: nothing
+# that authenticates anything goes into this repository, not even once)
+appsettings.Local.json
+appsettings.*.Local.json
+.env
+*.pfx
+*.p12
+*.cer
+*.crt
+*.key
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Local development database folder
+.data/

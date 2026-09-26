@@ -1,0 +1,16 @@
+@page "/"
+@inject IStringLocalizer<UiText> T
+
+<PageTitle>@T["AppName"]</PageTitle>
+
+<h1>@T["AppName"]</h1>
+<p class="tagline">@T["AppTagline"]</p>
+
+<p>@T["Home_Greeting"]</p>
+
+<dl>
+    <dt>@T["Home_DatabaseLabel"]</dt>
+    <dd>@T["Home_DatabaseReady"]</dd>
+</dl>
+
+<p><em>@T["Home_OfflineNotice"]</em></p>

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bipe.Domain\Bipe.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

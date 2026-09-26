@@ -1,0 +1,20 @@
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- pt-BR formatting for money and dates depends on ICU data being present. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Product">
+    <Product>Bipe</Product>
+    <Version>0.1.0</Version>
+    <Authors>Rafael dos Santos</Authors>
+    <Copyright>Copyright (c) Rafael dos Santos</Copyright>
+  </PropertyGroup>
+
+</Project>
