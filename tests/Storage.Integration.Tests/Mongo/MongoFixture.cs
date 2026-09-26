@@ -53,6 +53,11 @@ internal sealed class FixedTenant(Guid tenantId) : Storage.Application.Abstracti
     public Guid TenantId { get; } = tenantId;
 }
 
+internal sealed class FixedUser(Guid userId) : Storage.Application.Abstractions.ICurrentUser
+{
+    public Guid UserId { get; } = userId;
+}
+
 internal sealed class FixedClock(DateTimeOffset now) : TimeProvider
 {
     public override DateTimeOffset GetUtcNow() => now;

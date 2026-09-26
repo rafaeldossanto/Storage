@@ -40,6 +40,9 @@ public sealed class SalesService(
     ICurrentUser currentUser,
     TimeProvider clock)
 {
+    /// <summary>Tries before a conflict reaches the till: enough for a few tills at once.</summary>
+    public const int ConflictAttempts = 5;
+
     /// <summary>
     /// Records a sale and takes its units off the shelf, all in one commit: either the whole
     /// sale is on the books with its stock gone, or nothing happened.
@@ -54,6 +57,41 @@ public sealed class SalesService(
             .Select(group => new SaleItemRequest(group.Key, group.Sum(item => item.Quantity)))
             .ToArray();
 
+        return await RetryingOnStockConflictAsync(() => RegisterOnceAsync(items, cancellationToken));
+    }
+
+    /// <summary>
+    /// Undoes a sale made moments ago - the wrong product scanned - putting its units back
+    /// into the very batches they came from.
+    /// </summary>
+    public Task<SaleDto> CancelAsync(Guid saleId, CancellationToken cancellationToken = default) =>
+        // Read again on a retry: if the conflict was someone else cancelling this very sale,
+        // the second attempt finds it cancelled and says so.
+        RetryingOnStockConflictAsync(() => CancelOnceAsync(saleId, cancellationToken));
+
+    /// <summary>
+    /// Two tills selling the same product at the same instant touch the same batch; the one
+    /// that commits second finds the batch changed and its whole commit refused. Nothing was
+    /// written, so the sale is simply worked out again on fresh batches - the cashier never
+    /// sees the conflict unless it keeps happening.
+    /// </summary>
+    private static async Task<SaleDto> RetryingOnStockConflictAsync(Func<Task<SaleDto>> attempt)
+    {
+        for (var tries = 1; ; tries++)
+        {
+            try
+            {
+                return await attempt();
+            }
+            catch (UseCaseException conflict) when (conflict.Code == ErrorCodes.StockChangedConcurrently && tries < ConflictAttempts)
+            {
+                // Someone else's commit won; go again on what they left.
+            }
+        }
+    }
+
+    private async Task<SaleDto> RegisterOnceAsync(SaleItemRequest[] items, CancellationToken cancellationToken)
+    {
         var now = clock.GetUtcNow();
         var today = await calendar.TodayAsync(cancellationToken);
         var rules = await discounts.ListActiveAsync(cancellationToken);
@@ -82,11 +120,7 @@ public sealed class SalesService(
         return ToDto(sale);
     }
 
-    /// <summary>
-    /// Undoes a sale made moments ago - the wrong product scanned - putting its units back
-    /// into the very batches they came from.
-    /// </summary>
-    public async Task<SaleDto> CancelAsync(Guid saleId, CancellationToken cancellationToken = default)
+    private async Task<SaleDto> CancelOnceAsync(Guid saleId, CancellationToken cancellationToken)
     {
         var sale = await sales.FindAsync(saleId, cancellationToken)
             ?? throw UseCaseException.NotFound(ErrorCodes.SaleNotFound, $"Sale {saleId} does not exist.");
