@@ -1,3 +1,4 @@
+using Storage.Application.Abstractions;
 using Storage.Application.Catalog;
 
 namespace Storage.Api.Endpoints;
@@ -8,27 +9,31 @@ public static class ProductEndpoints
     {
         var products = app.MapGroup("/api/products").WithTags("Products");
 
-        // Either a name search or a category listing. The catalogue of a shop runs to
-        // thousands of products, so there is deliberately no "give me everything".
+        // Either a name search or a category listing, a page at a time. The catalogue of a
+        // shop runs to thousands of products, so there is deliberately no "give me everything".
         products.MapGet("/", async (
             string? search,
             Guid? categoryId,
             bool? includeDescendants,
+            int? page,
+            int? pageSize,
             ProductService service,
             CancellationToken cancellationToken) =>
         {
+            var slice = PageRequest.Of(page, pageSize);
+
             if (!string.IsNullOrWhiteSpace(search))
             {
-                return await service.SearchAsync(search, cancellationToken);
+                return await service.SearchAsync(search, slice, cancellationToken);
             }
 
             if (categoryId is { } category)
             {
                 return await service.ListByCategoryAsync(
-                    category, includeDescendants ?? true, cancellationToken);
+                    category, includeDescendants ?? true, slice, cancellationToken);
             }
 
-            return [];
+            return Paged<ProductDto>.Empty(slice);
         });
 
         products.MapGet("/{id:guid}", (

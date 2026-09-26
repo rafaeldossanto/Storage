@@ -78,6 +78,44 @@ public sealed class RefusalContractTests(MongoFixture mongo) : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_page_out_of_range_is_refused_with_a_code()
+    {
+        var client = _api.CreateClient();
+        var owner = await SignUpAsync(client, NewEmail());
+
+        var response = await SendAsync(client, HttpMethod.Get, "/api/receipts?page=1&pageSize=500", owner);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Equal("page.invalid", await CodeAsync(response));
+    }
+
+    [Fact]
+    public async Task A_list_comes_as_a_page_that_says_how_much_there_is_in_all()
+    {
+        var client = _api.CreateClient();
+        var owner = await SignUpAsync(client, NewEmail());
+
+        // A new shop comes with its category tree: "Bebidas" and its branch.
+        var tree = await BodyAsync(await SendAsync(client, HttpMethod.Get, "/api/categories", owner));
+        var beverages = tree.EnumerateArray().Single(node => node.GetProperty("name").GetString() == "Bebidas");
+        var categoryId = beverages.GetProperty("id").GetGuid();
+        string[] barcodes = ["7891000000014", "7891000000021", "7891000000038"];
+        foreach (var barcode in barcodes)
+        {
+            (await SendAsync(client, HttpMethod.Post, "/api/products", owner,
+                new { name = $"Produto {barcode}", categoryId, barcode, salePriceCents = 500 })).EnsureSuccessStatusCode();
+        }
+
+        var page = await BodyAsync(await SendAsync(client, HttpMethod.Get, $"/api/products?categoryId={categoryId}&page=2&pageSize=2", owner));
+
+        Assert.Equal(1, page.GetProperty("items").GetArrayLength());
+        Assert.Equal(2, page.GetProperty("page").GetInt32());
+        Assert.Equal(2, page.GetProperty("pageSize").GetInt32());
+        Assert.Equal(3, page.GetProperty("total").GetInt64());
+        Assert.Equal(2, page.GetProperty("totalPages").GetInt32());
+    }
+
+    [Fact]
     public async Task Too_many_sign_in_attempts_get_a_code_and_a_time_to_wait()
     {
         await using var strict = new StorageApiFactory(mongo, authPermitsPerMinute: 2);

@@ -15,6 +15,10 @@ public sealed class ProductRepository(
 {
     private const string BarcodeTaken = "One of these barcodes already belongs to another product.";
 
+    // Alphabetical the way a person reads Portuguese. A plain byte-order sort puts every
+    // capital and accented initial after "z": "Água mineral" would come after "Suco".
+    private static readonly Collation Portuguese = new("pt");
+
     private FilterDefinition<Product> OfThisShop =>
         Builders<Product>.Filter.Eq(product => product.TenantId, tenant.TenantId);
 
@@ -59,14 +63,16 @@ public sealed class ProductRepository(
         return await context.Products.Find(filter).FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Product>> SearchAsync(
+    public async Task<Paged<Product>> SearchAsync(
         string term,
-        int limit = 20,
+        PageRequest page,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(page);
+
         if (string.IsNullOrWhiteSpace(term))
         {
-            return [];
+            return Paged<Product>.Empty(page);
         }
 
         // Case-insensitive contains: good enough for a few thousand products, and the
@@ -78,18 +84,16 @@ public sealed class ProductRepository(
             OfThisShop,
             Builders<Product>.Filter.Regex(product => product.Name, pattern));
 
-        return await context.Products
-            .Find(filter)
-            .SortBy(product => product.Name)
-            .Limit(limit)
-            .ToListAsync(cancellationToken);
+        return await PageAsync(filter, page, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Product>> ListByCategoryAsync(
+    public async Task<Paged<Product>> ListByCategoryAsync(
         Category category,
         bool includeDescendants,
+        PageRequest page,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(page);
         ArgumentNullException.ThrowIfNull(category);
 
         FilterDefinition<Product> categoryFilter;
@@ -113,10 +117,7 @@ public sealed class ProductRepository(
             categoryFilter = Builders<Product>.Filter.Eq(product => product.CategoryId, category.Id);
         }
 
-        return await context.Products
-            .Find(Builders<Product>.Filter.And(OfThisShop, categoryFilter))
-            .SortBy(product => product.Name)
-            .ToListAsync(cancellationToken);
+        return await PageAsync(Builders<Product>.Filter.And(OfThisShop, categoryFilter), page, cancellationToken);
     }
 
     public async Task AddAsync(Product product, CancellationToken cancellationToken = default)
@@ -152,6 +153,17 @@ public sealed class ProductRepository(
     /// <summary>
     /// Refuses to write a record belonging to another shop, even if a caller hands one over.
     /// </summary>
+    private Task<Paged<Product>> PageAsync(
+        FilterDefinition<Product> filter,
+        PageRequest page,
+        CancellationToken cancellationToken) =>
+        context.Products.PageAsync(
+            filter,
+            Builders<Product>.Sort.Ascending(product => product.Name).Ascending(product => product.Id),
+            page,
+            cancellationToken,
+            new FindOptions { Collation = Portuguese });
+
     private void Guard(Product product)
     {
         if (product.TenantId != tenant.TenantId)

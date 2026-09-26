@@ -127,6 +127,11 @@ em `StorageBsonSerialization`.
   português; o `detail` é texto técnico em inglês e não deve ir para a tela. Corpo que não
   é JSON válido volta 400 `request.malformed`. Qualquer outra falha é bug e volta como 500
   sem mensagem.
+- **Listas longas vêm paginadas**: `?page=1&pageSize=50` (máximo 200), e a resposta é
+  `{ items, page, pageSize, total, totalPages }`. Produtos, estoque por categoria, abaixo
+  do mínimo, entradas, contagens e o histórico de movimentos de um produto. Produto vem em
+  ordem alfabética do português ("Água" entre os A, não depois do Z). Página fora do
+  intervalo é recusada com `page.invalid`, sem ajuste silencioso.
 - **404 no código de barras é caminho normal**: `GET /api/products/by-barcode/{codigo}`
   sem produto é a deixa para a tela abrir o cadastro já preenchido.
 - **OpenAPI** gerado a cada build em `openapi/storage-api.json`, versionado — é ali que o

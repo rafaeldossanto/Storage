@@ -139,11 +139,14 @@ public sealed class PricingService(
         var category = await categories.FindAsync(targetId, cancellationToken)
             ?? throw TargetNotFound();
 
-        var reached = await products.ListByCategoryAsync(category, includeDescendants: true, cancellationToken);
+        // The first page is the sample, and its total is the reach: one query, however big
+        // the branch.
+        var reached = await products.ListByCategoryAsync(
+            category, includeDescendants: true, PageRequest.First(PreviewSampleSize), cancellationToken);
 
         return new DiscountPreviewDto(
-            reached.Count,
-            reached.Select(product => product.Name).Take(PreviewSampleSize).ToArray());
+            (int)reached.Total,
+            reached.Items.Select(product => product.Name).ToArray());
     }
 
     /// <summary>

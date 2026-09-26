@@ -50,8 +50,6 @@ public sealed class CountService(
     ICurrentUser currentUser,
     TimeProvider clock)
 {
-    public const int RecentLimit = 30;
-
     /// <summary>
     /// Opens a count, of one branch or of the whole shop. One at a time: two overlapping
     /// counts would each adjust the same shelf.
@@ -201,9 +199,9 @@ public sealed class CountService(
     public async Task<CountDto> GetAsync(Guid countId, CancellationToken cancellationToken = default) =>
         await ToDtoAsync(await RequireAsync(countId, cancellationToken), cancellationToken);
 
-    public async Task<IReadOnlyList<CountSummaryDto>> ListRecentAsync(CancellationToken cancellationToken = default) =>
-        (await counts.ListRecentAsync(RecentLimit, cancellationToken))
-            .Select(count => new CountSummaryDto(
+    public async Task<Paged<CountSummaryDto>> ListAsync(PageRequest page, CancellationToken cancellationToken = default) =>
+        (await counts.ListAsync(page, cancellationToken))
+            .Map(count => new CountSummaryDto(
                 count.Id,
                 count.CategoryId,
                 count.Status,
@@ -211,8 +209,7 @@ public sealed class CountService(
                 count.ClosedAt,
                 count.Items.Count,
                 -count.Items.Where(item => item.Difference < 0).Sum(item => item.Difference ?? 0),
-                count.Items.Where(item => item.Difference > 0).Sum(item => item.Difference ?? 0)))
-            .ToArray();
+                count.Items.Where(item => item.Difference > 0).Sum(item => item.Difference ?? 0)));
 
     private async Task<CountDto> ToDtoAsync(StockCount count, CancellationToken cancellationToken)
     {

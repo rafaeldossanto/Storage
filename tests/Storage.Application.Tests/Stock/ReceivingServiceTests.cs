@@ -1,3 +1,4 @@
+using Storage.Application.Abstractions;
 using Storage.Application.Errors;
 using Storage.Application.Stock;
 using Storage.Application.Tests.Fakes;
@@ -144,7 +145,7 @@ public sealed class ReceivingServiceTests
         var received = await _service.ReceiveAsync(
             new ReceiveGoodsRequest([new("7891000000021", 10, 450)], supplier.Id, "NF 998"), Token);
 
-        var recent = await _service.ListRecentAsync(Token);
+        var recent = (await _service.ListAsync(PageRequest.First(), Token)).Items;
 
         var summary = Assert.Single(recent);
         Assert.Equal(received.Id, summary.Id);

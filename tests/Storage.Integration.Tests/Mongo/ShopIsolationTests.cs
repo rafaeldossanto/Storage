@@ -1,3 +1,4 @@
+using Storage.Application.Abstractions;
 using Storage.Application.Errors;
 using Storage.Domain.Catalog;
 using Storage.Domain.ValueObjects;
@@ -43,7 +44,7 @@ public sealed class ShopIsolationTests(MongoFixture mongo)
 
         Assert.Null(await fromB.FindAsync(product.Id, Token));
         Assert.Null(await fromB.FindByGtinAsync(Gtin.Parse("7891000000014"), Token));
-        Assert.Empty(await fromB.SearchAsync("Energético", cancellationToken: Token));
+        Assert.Empty((await fromB.SearchAsync("Energético", PageRequest.First(), Token)).Items);
     }
 
     [Fact]
@@ -153,8 +154,8 @@ public sealed class ShopIsolationTests(MongoFixture mongo)
             Money.FromCents(899), Gtin.Parse("7891000000014"));
         await Products(db, ShopA).AddAsync(drink, Token);
 
-        Assert.Single(await Products(db, ShopA).ListByCategoryAsync(beverages, includeDescendants: true, Token));
-        Assert.Empty(await Products(db, ShopA).ListByCategoryAsync(beverages, includeDescendants: false, Token));
+        Assert.Single((await Products(db, ShopA).ListByCategoryAsync(beverages, includeDescendants: true, PageRequest.First(), Token)).Items);
+        Assert.Empty((await Products(db, ShopA).ListByCategoryAsync(beverages, includeDescendants: false, PageRequest.First(), Token)).Items);
     }
 
     [Fact]
@@ -164,8 +165,8 @@ public sealed class ShopIsolationTests(MongoFixture mongo)
         await Products(db, ShopA).AddAsync(NewProduct(ShopA, "7891000000014", "Leite (1L) Integral"), Token);
 
         // "(1L" is not a valid regular expression; searching for it must not blow up.
-        Assert.Single(await Products(db, ShopA).SearchAsync("LEITE", cancellationToken: Token));
-        Assert.Single(await Products(db, ShopA).SearchAsync("(1L", cancellationToken: Token));
+        Assert.Single((await Products(db, ShopA).SearchAsync("LEITE", PageRequest.First(), Token)).Items);
+        Assert.Single((await Products(db, ShopA).SearchAsync("(1L", PageRequest.First(), Token)).Items);
     }
 
     [Fact]

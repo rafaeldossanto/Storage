@@ -98,22 +98,29 @@ internal sealed class InMemoryProductRepository(ITenantContext tenant, InMemoryC
     public Task<Product?> FindByGtinAsync(Gtin gtin, CancellationToken cancellationToken = default) =>
         Task.FromResult(OfThisShop().FirstOrDefault(product => product.FindPackaging(gtin) is not null));
 
-    public Task<IReadOnlyList<Product>> SearchAsync(
+    public Task<Paged<Product>> SearchAsync(
         string term,
-        int limit = 20,
+        PageRequest page,
         CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<Product>>(OfThisShop()
-            .Where(product => product.Name.Contains(term, StringComparison.OrdinalIgnoreCase))
-            .Take(limit)
-            .ToArray());
+        Task.FromResult(Paged<Product>.Slice(
+            Alphabetical(OfThisShop().Where(product => product.Name.Contains(term, StringComparison.OrdinalIgnoreCase))),
+            page));
 
-    public Task<IReadOnlyList<Product>> ListByCategoryAsync(
+    public Task<Paged<Product>> ListByCategoryAsync(
         Category category,
         bool includeDescendants,
+        PageRequest page,
         CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<Product>>(OfThisShop()
-            .Where(product => InBranch(product.CategoryId, category, includeDescendants))
-            .ToArray());
+        Task.FromResult(Paged<Product>.Slice(
+            Alphabetical(OfThisShop().Where(product => InBranch(product.CategoryId, category, includeDescendants))),
+            page));
+
+    // Stands in for the database's Portuguese collation.
+    private static Product[] Alphabetical(IEnumerable<Product> products) =>
+        products
+            .OrderBy(product => product.Name, StringComparer.Create(new System.Globalization.CultureInfo("pt-BR"), ignoreCase: true))
+            .ThenBy(product => product.Id)
+            .ToArray();
 
     private bool InBranch(Guid productCategory, Category category, bool includeDescendants) =>
         productCategory == category.Id

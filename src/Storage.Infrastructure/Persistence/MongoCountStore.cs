@@ -25,12 +25,12 @@ public sealed class MongoCountStore(MongoStorageContext context, ITenantContext 
             .Find(OfThisShop & Builders<StockCount>.Filter.Eq(count => count.Status, StockCountStatus.Open))
             .FirstOrDefaultAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<StockCount>> ListRecentAsync(int limit, CancellationToken cancellationToken = default) =>
-        await context.StockCounts
-            .Find(OfThisShop)
-            .SortByDescending(count => count.StartedAt)
-            .Limit(limit)
-            .ToListAsync(cancellationToken);
+    public async Task<Paged<StockCount>> ListAsync(PageRequest page, CancellationToken cancellationToken = default) =>
+        await context.StockCounts.PageAsync(
+            OfThisShop,
+            Builders<StockCount>.Sort.Descending(count => count.StartedAt).Descending(count => count.Id),
+            page,
+            cancellationToken);
 
     public async Task AddAsync(StockCount count, CancellationToken cancellationToken = default)
     {

@@ -34,23 +34,22 @@ public sealed class ProductService(
         return product.ToDto();
     }
 
-    public async Task<IReadOnlyList<ProductDto>> SearchAsync(
+    public async Task<Paged<ProductDto>> SearchAsync(
         string term,
+        PageRequest page,
         CancellationToken cancellationToken = default) =>
-        (await products.SearchAsync(term, cancellationToken: cancellationToken))
-            .Select(product => product.ToDto())
-            .ToArray();
+        (await products.SearchAsync(term, page, cancellationToken)).Map(product => product.ToDto());
 
-    public async Task<IReadOnlyList<ProductDto>> ListByCategoryAsync(
+    public async Task<Paged<ProductDto>> ListByCategoryAsync(
         Guid categoryId,
         bool includeDescendants,
+        PageRequest page,
         CancellationToken cancellationToken = default)
     {
         var category = await RequireCategoryAsync(categoryId, cancellationToken);
 
-        return (await products.ListByCategoryAsync(category, includeDescendants, cancellationToken))
-            .Select(product => product.ToDto())
-            .ToArray();
+        return (await products.ListByCategoryAsync(category, includeDescendants, page, cancellationToken))
+            .Map(product => product.ToDto());
     }
 
     public async Task<ProductDto> CreateAsync(

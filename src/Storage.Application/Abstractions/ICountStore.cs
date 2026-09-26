@@ -9,7 +9,8 @@ public interface ICountStore
 
     Task<StockCount?> FindOpenAsync(CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<StockCount>> ListRecentAsync(int limit, CancellationToken cancellationToken = default);
+    /// <summary>Counts, the most recently started first.</summary>
+    Task<Paged<StockCount>> ListAsync(PageRequest page, CancellationToken cancellationToken = default);
 
     Task AddAsync(StockCount count, CancellationToken cancellationToken = default);
 

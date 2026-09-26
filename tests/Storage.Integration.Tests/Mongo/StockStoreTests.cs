@@ -30,7 +30,7 @@ public sealed class StockStoreTests(MongoFixture mongo)
         await store.CommitAsync(changes, Token);
 
         Assert.Single(await store.ListBatchesAsync(Drink, availableOnly: true, Token));
-        var movement = Assert.Single(await store.ListMovementsAsync(Drink, 10, Token));
+        var movement = Assert.Single((await store.ListMovementsAsync(Drink, PageRequest.First(), Token)).Items);
         Assert.Equal(12, movement.Quantity);
     }
 
@@ -138,7 +138,7 @@ public sealed class StockStoreTests(MongoFixture mongo)
 
         Assert.Equal(0, (await otherShop.LevelsAsync([Drink], Token))[Drink].Quantity);
         Assert.Empty(await otherShop.ListBatchesAsync(Drink, false, Token));
-        Assert.Empty(await otherShop.ListMovementsAsync(Drink, 10, Token));
+        Assert.Empty((await otherShop.ListMovementsAsync(Drink, PageRequest.First(), Token)).Items);
     }
 
     [Fact]
@@ -212,8 +212,8 @@ public sealed class StockStoreTests(MongoFixture mongo)
         Assert.Equal(12000, stored.TotalCost.Cents);
         Assert.Equal("NF 1234", stored.InvoiceNumber);
 
-        Assert.Single(await store.ListReceiptsAsync(10, Token));
-        Assert.Empty(await new MongoStockStore(db, new FixedTenant(Guid.CreateVersion7())).ListReceiptsAsync(10, Token));
+        Assert.Single((await store.ListReceiptsAsync(PageRequest.First(), Token)).Items);
+        Assert.Empty((await new MongoStockStore(db, new FixedTenant(Guid.CreateVersion7())).ListReceiptsAsync(PageRequest.First(), Token)).Items);
     }
 
     [Fact]

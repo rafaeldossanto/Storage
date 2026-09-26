@@ -76,6 +76,8 @@ public static class ErrorCodes
 
     public const string ReportPeriodInvalid = "report.period_invalid";
 
+    public const string PageInvalid = "page.invalid";
+
     public const string CountNotFound = "count.not_found";
     public const string CountAlreadyOpen = "count.already_open";
     public const string CountProductOutOfScope = "count.product_out_of_scope";

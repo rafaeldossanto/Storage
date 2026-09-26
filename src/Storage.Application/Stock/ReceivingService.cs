@@ -58,8 +58,6 @@ public sealed class ReceivingService(
     /// <summary>Where the failing line of a receipt travels, 1-based, on the exception.</summary>
     public const string LineKey = "line";
 
-    public const int RecentReceiptsLimit = 50;
-
     /// <summary>
     /// Takes a delivery in: one batch per scanned line, one movement per batch and the
     /// receipt document, all committed together.
@@ -127,20 +125,19 @@ public sealed class ReceivingService(
         return ToDto(receipt, supplier?.Name, names);
     }
 
-    public async Task<IReadOnlyList<ReceiptSummaryDto>> ListRecentAsync(CancellationToken cancellationToken = default)
+    /// <summary>Deliveries, newest first, a page at a time - the whole history stays reachable.</summary>
+    public async Task<Paged<ReceiptSummaryDto>> ListAsync(PageRequest page, CancellationToken cancellationToken = default)
     {
-        var receipts = await stock.ListReceiptsAsync(RecentReceiptsLimit, cancellationToken);
+        var receipts = await stock.ListReceiptsAsync(page, cancellationToken);
         var supplierNames = (await suppliers.ListAsync(cancellationToken)).ToDictionary(s => s.Id, s => s.Name);
 
-        return receipts
-            .Select(receipt => new ReceiptSummaryDto(
-                receipt.Id,
-                receipt.ReceivedAt,
-                receipt.SupplierId is { } id ? supplierNames.GetValueOrDefault(id) : null,
-                receipt.InvoiceNumber,
-                receipt.Lines.Count,
-                receipt.TotalCost.Cents))
-            .ToArray();
+        return receipts.Map(receipt => new ReceiptSummaryDto(
+            receipt.Id,
+            receipt.ReceivedAt,
+            receipt.SupplierId is { } id ? supplierNames.GetValueOrDefault(id) : null,
+            receipt.InvoiceNumber,
+            receipt.Lines.Count,
+            receipt.TotalCost.Cents));
     }
 
     public async Task<ReceiptDto> GetAsync(Guid id, CancellationToken cancellationToken = default)

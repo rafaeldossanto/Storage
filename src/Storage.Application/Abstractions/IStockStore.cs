@@ -27,9 +27,10 @@ public interface IStockStore
     /// <summary>Available batches of the shop that have passed <paramref name="shopDate"/>.</summary>
     Task<IReadOnlyList<Batch>> ListExpiredBatchesAsync(DateOnly shopDate, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<StockMovement>> ListMovementsAsync(
+    /// <summary>A product's movements, newest first - the whole ledger, a page at a time.</summary>
+    Task<Paged<StockMovement>> ListMovementsAsync(
         Guid productId,
-        int limit,
+        PageRequest page,
         CancellationToken cancellationToken = default);
 
     /// <summary>Available batches expiring between two dates, inclusive - the expiry dashboard.</summary>
@@ -48,8 +49,8 @@ public interface IStockStore
         IReadOnlyCollection<MovementType> types,
         CancellationToken cancellationToken = default);
 
-    /// <summary>The most recent deliveries, newest first.</summary>
-    Task<IReadOnlyList<GoodsReceipt>> ListReceiptsAsync(int limit, CancellationToken cancellationToken = default);
+    /// <summary>Deliveries, newest first.</summary>
+    Task<Paged<GoodsReceipt>> ListReceiptsAsync(PageRequest page, CancellationToken cancellationToken = default);
 
     Task<GoodsReceipt?> FindReceiptAsync(Guid id, CancellationToken cancellationToken = default);
 

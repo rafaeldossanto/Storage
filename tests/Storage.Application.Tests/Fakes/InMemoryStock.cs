@@ -46,12 +46,14 @@ internal sealed class InMemoryStockStore(Guid tenantId) : IStockStore
             .Where(batch => batch.TenantId == tenantId && batch.Status == BatchStatus.Available && batch.HasExpiredOn(shopDate))
             .ToArray());
 
-    public Task<IReadOnlyList<StockMovement>> ListMovementsAsync(Guid productId, int limit, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<StockMovement>>(Movements
-            .Where(movement => movement.TenantId == tenantId && movement.ProductId == productId)
-            .OrderByDescending(movement => movement.OccurredAt)
-            .Take(limit)
-            .ToArray());
+    public Task<Paged<StockMovement>> ListMovementsAsync(Guid productId, PageRequest page, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Paged<StockMovement>.Slice(
+            Movements
+                .Where(movement => movement.TenantId == tenantId && movement.ProductId == productId)
+                .OrderByDescending(movement => movement.OccurredAt)
+                .ThenByDescending(movement => movement.Id)
+                .ToArray(),
+            page));
 
     public Task<IReadOnlyList<Batch>> ListExpiringBatchesAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<Batch>>(Batches
@@ -75,12 +77,14 @@ internal sealed class InMemoryStockStore(Guid tenantId) : IStockStore
                 group.Aggregate(Money.Zero, (sum, movement) => sum + movement.Value)))
             .ToArray());
 
-    public Task<IReadOnlyList<GoodsReceipt>> ListReceiptsAsync(int limit, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<GoodsReceipt>>(Documents.OfType<GoodsReceipt>()
-            .Where(receipt => receipt.TenantId == tenantId)
-            .OrderByDescending(receipt => receipt.ReceivedAt)
-            .Take(limit)
-            .ToArray());
+    public Task<Paged<GoodsReceipt>> ListReceiptsAsync(PageRequest page, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Paged<GoodsReceipt>.Slice(
+            Documents.OfType<GoodsReceipt>()
+                .Where(receipt => receipt.TenantId == tenantId)
+                .OrderByDescending(receipt => receipt.ReceivedAt)
+                .ThenByDescending(receipt => receipt.Id)
+                .ToArray(),
+            page));
 
     public Task<GoodsReceipt?> FindReceiptAsync(Guid id, CancellationToken cancellationToken = default) =>
         Task.FromResult(Documents.OfType<GoodsReceipt>().FirstOrDefault(receipt => receipt.TenantId == tenantId && receipt.Id == id));
@@ -173,8 +177,14 @@ internal sealed class InMemoryCountStore(ITenantContext tenant) : ICountStore
     public Task<StockCount?> FindOpenAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(Stored.FirstOrDefault(count => count.TenantId == tenant.TenantId && count.Status == StockCountStatus.Open));
 
-    public Task<IReadOnlyList<StockCount>> ListRecentAsync(int limit, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<StockCount>>(Stored.Where(count => count.TenantId == tenant.TenantId).Take(limit).ToArray());
+    public Task<Paged<StockCount>> ListAsync(PageRequest page, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Paged<StockCount>.Slice(
+            Stored
+                .Where(count => count.TenantId == tenant.TenantId)
+                .OrderByDescending(count => count.StartedAt)
+                .ThenByDescending(count => count.Id)
+                .ToArray(),
+            page));
 
     public Task AddAsync(StockCount count, CancellationToken cancellationToken = default)
     {

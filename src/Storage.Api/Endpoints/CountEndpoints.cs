@@ -1,3 +1,4 @@
+using Storage.Application.Abstractions;
 using Storage.Application.Stock;
 
 namespace Storage.Api.Endpoints;
@@ -8,8 +9,8 @@ public static class CountEndpoints
     {
         var counts = app.MapGroup("/api/counts").WithTags("Counts");
 
-        counts.MapGet("/", (CountService service, CancellationToken cancellationToken) =>
-            service.ListRecentAsync(cancellationToken));
+        counts.MapGet("/", (int? page, int? pageSize, CountService service, CancellationToken cancellationToken) =>
+            service.ListAsync(PageRequest.Of(page, pageSize), cancellationToken));
 
         counts.MapPost("/", async (StartCountRequest request, CountService service, CancellationToken cancellationToken) =>
         {

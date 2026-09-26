@@ -1,3 +1,4 @@
+using Storage.Application.Abstractions;
 using Storage.Application.Stock;
 
 namespace Storage.Api.Endpoints;
@@ -19,8 +20,8 @@ public static class ReceivingEndpoints
             return TypedResults.Created($"/api/receipts/{received.Id}", received);
         });
 
-        receipts.MapGet("/", (ReceivingService service, CancellationToken cancellationToken) =>
-            service.ListRecentAsync(cancellationToken));
+        receipts.MapGet("/", (int? page, int? pageSize, ReceivingService service, CancellationToken cancellationToken) =>
+            service.ListAsync(PageRequest.Of(page, pageSize), cancellationToken));
 
         receipts.MapGet("/{id:guid}", (Guid id, ReceivingService service, CancellationToken cancellationToken) =>
             service.GetAsync(id, cancellationToken));

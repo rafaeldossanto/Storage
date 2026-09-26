@@ -91,29 +91,31 @@ public sealed class MongoStockStore(MongoStorageContext context, ITenantContext 
             .ToArray();
     }
 
-    public async Task<IReadOnlyList<StockMovement>> ListMovementsAsync(
+    public async Task<Paged<StockMovement>> ListMovementsAsync(
         Guid productId,
-        int limit,
+        PageRequest page,
         CancellationToken cancellationToken = default)
     {
         var filter = Builders<StockMovement>.Filter.Eq(movement => movement.TenantId, tenant.TenantId)
             & Builders<StockMovement>.Filter.Eq(movement => movement.ProductId, productId);
 
-        return await context.StockMovements
-            .Find(filter)
-            .SortByDescending(movement => movement.OccurredAt)
-            .Limit(limit)
-            .ToListAsync(cancellationToken);
+        // One commit stamps all its movements with the same instant; the id - a version 7
+        // Guid, ordered by creation - keeps them in the order they were written.
+        return await context.StockMovements.PageAsync(
+            filter,
+            Builders<StockMovement>.Sort.Descending(movement => movement.OccurredAt).Descending(movement => movement.Id),
+            page,
+            cancellationToken);
     }
 
-    public async Task<IReadOnlyList<GoodsReceipt>> ListReceiptsAsync(
-        int limit,
+    public async Task<Paged<GoodsReceipt>> ListReceiptsAsync(
+        PageRequest page,
         CancellationToken cancellationToken = default) =>
-        await context.GoodsReceipts
-            .Find(Builders<GoodsReceipt>.Filter.Eq(receipt => receipt.TenantId, tenant.TenantId))
-            .SortByDescending(receipt => receipt.ReceivedAt)
-            .Limit(limit)
-            .ToListAsync(cancellationToken);
+        await context.GoodsReceipts.PageAsync(
+            Builders<GoodsReceipt>.Filter.Eq(receipt => receipt.TenantId, tenant.TenantId),
+            Builders<GoodsReceipt>.Sort.Descending(receipt => receipt.ReceivedAt).Descending(receipt => receipt.Id),
+            page,
+            cancellationToken);
 
     public async Task<GoodsReceipt?> FindReceiptAsync(Guid id, CancellationToken cancellationToken = default) =>
         await context.GoodsReceipts

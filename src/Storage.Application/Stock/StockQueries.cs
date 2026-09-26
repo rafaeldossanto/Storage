@@ -48,24 +48,50 @@ public sealed class StockQueries(IStockStore stock, IProductRepository products,
 {
     public const int MovementHistoryLimit = 50;
 
-    /// <summary>Every product of a category, optionally with its whole branch, and its stock.</summary>
-    public async Task<IReadOnlyList<StockItemDto>> ListByCategoryAsync(
+    /// <summary>
+    /// The products of a category, optionally with its whole branch, and their stock. Only
+    /// the page's products have their balance computed.
+    /// </summary>
+    public async Task<Paged<StockItemDto>> ListByCategoryAsync(
         Guid categoryId,
         bool includeDescendants,
+        PageRequest page,
         CancellationToken cancellationToken = default)
     {
         var category = await categories.FindAsync(categoryId, cancellationToken)
             ?? throw UseCaseException.NotFound(ErrorCodes.CategoryNotFound, $"Category {categoryId} does not exist.");
 
-        var listed = await products.ListByCategoryAsync(category, includeDescendants, cancellationToken);
-        return await WithLevelsAsync(listed, cancellationToken);
+        var listed = await products.ListByCategoryAsync(category, includeDescendants, page, cancellationToken);
+        var items = await WithLevelsAsync(listed.Items, cancellationToken);
+
+        return new Paged<StockItemDto>(items, listed.Page, listed.PageSize, listed.Total);
     }
 
     /// <summary>
     /// What is running out: active products below the minimum the shop set for them, the
     /// emptiest first. The list a shopkeeper takes to the supplier.
     /// </summary>
-    public async Task<IReadOnlyList<StockItemDto>> ListBelowMinimumAsync(CancellationToken cancellationToken = default)
+    public async Task<Paged<StockItemDto>> ListBelowMinimumAsync(
+        PageRequest page,
+        CancellationToken cancellationToken = default) =>
+        // Whether a product is below its minimum depends on its balance, which lives in the
+        // batches, so the whole list is worked out before it is cut into pages. It only
+        // covers products with a minimum set, a fraction of the catalogue.
+        Paged<StockItemDto>.Slice(await BelowMinimumAsync(cancellationToken), page);
+
+    /// <summary>A product's whole movement history, newest first.</summary>
+    public async Task<Paged<MovementDto>> ListMovementsAsync(
+        Guid productId,
+        PageRequest page,
+        CancellationToken cancellationToken = default)
+    {
+        _ = await products.FindAsync(productId, cancellationToken)
+            ?? throw UseCaseException.NotFound(ErrorCodes.ProductNotFound, $"Product {productId} does not exist.");
+
+        return (await stock.ListMovementsAsync(productId, page, cancellationToken)).Map(ToDto);
+    }
+
+    private async Task<IReadOnlyList<StockItemDto>> BelowMinimumAsync(CancellationToken cancellationToken)
     {
         var tracked = (await products.ListWithMinimumStockAsync(cancellationToken))
             .Where(product => product.Active)
@@ -84,7 +110,10 @@ public sealed class StockQueries(IStockStore stock, IProductRepository products,
             ?? throw UseCaseException.NotFound(ErrorCodes.ProductNotFound, $"Product {productId} does not exist.");
 
         var batches = await stock.ListBatchesAsync(productId, availableOnly: true, cancellationToken);
-        var movements = await stock.ListMovementsAsync(productId, MovementHistoryLimit, cancellationToken);
+        // The product view shows the latest movements; the full history pages through
+        // ListMovementsAsync.
+        var movements = (await stock.ListMovementsAsync(
+            productId, PageRequest.First(MovementHistoryLimit), cancellationToken)).Items;
         var valuation = StockValuation.Of(batches);
 
         var item = ToItem(product, StockService.ToDto(productId, valuation, batches));
@@ -98,7 +127,7 @@ public sealed class StockQueries(IStockStore stock, IProductRepository products,
     public async Task<StockSummaryDto> SummaryAsync(CancellationToken cancellationToken = default)
     {
         var levels = await stock.AllLevelsAsync(cancellationToken);
-        var belowMinimum = await ListBelowMinimumAsync(cancellationToken);
+        var belowMinimum = await BelowMinimumAsync(cancellationToken);
 
         return new StockSummaryDto(
             levels.Count(level => level.Quantity > 0),

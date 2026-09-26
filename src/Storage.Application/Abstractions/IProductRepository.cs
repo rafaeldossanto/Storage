@@ -21,16 +21,20 @@ public interface IProductRepository
     /// </summary>
     Task<Product?> FindByGtinAsync(Gtin gtin, CancellationToken cancellationToken = default);
 
-    /// <summary>Free-text search over the name, for goods that carry no barcode.</summary>
-    Task<IReadOnlyList<Product>> SearchAsync(
+    /// <summary>
+    /// Free-text search over the name, for goods that carry no barcode. Alphabetical, the way
+    /// a person reads Portuguese: "Água" among the A's, not after "Zebra".
+    /// </summary>
+    Task<Paged<Product>> SearchAsync(
         string term,
-        int limit = 20,
+        PageRequest page,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Products of one category, optionally including its whole branch.</summary>
-    Task<IReadOnlyList<Product>> ListByCategoryAsync(
+    /// <summary>Products of one category, optionally including its whole branch, alphabetical.</summary>
+    Task<Paged<Product>> ListByCategoryAsync(
         Category category,
         bool includeDescendants,
+        PageRequest page,
         CancellationToken cancellationToken = default);
 
     Task AddAsync(Product product, CancellationToken cancellationToken = default);
