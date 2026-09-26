@@ -21,15 +21,27 @@ Precisa de um MongoDB **em replica set** — transações multi-documento não f
 juntos. Com Docker:
 
 ```bash
-docker run -d --name storage-mongo -p 27017:27017 mongo:8 --replSet rs0
-docker exec storage-mongo mongosh --quiet --eval "rs.initiate()"
+docker run -d --name storage-mongo -p 27017:27017 mongo:8.0 --replSet rs0 --bind_ip_all
+docker exec storage-mongo mongosh --quiet --eval 'rs.initiate({_id: "rs0", members: [{_id: 0, host: "localhost:27017"}]})'
 ```
 
 Depois:
 
 ```bash
-dotnet run --project src/Storage.Api
+dotnet run --project src/Storage.Api --launch-profile http
 ```
+
+## Testes
+
+```bash
+dotnet test
+```
+
+Os testes de integração sobem um MongoDB próprio, descartável, com **Testcontainers** — então
+precisam do **Docker rodando**, mas não do container de desenvolvimento. É um replica set na
+mesma versão fixada (`mongo:8.0`), e cada teste usa um banco novo. São eles que provam o que
+só o banco garante: uma loja não enxerga os dados de outra, o índice único decide a disputa
+por um código de barras, e sessões vencidas somem pelo índice TTL.
 
 Para usar, crie uma loja com `POST /api/auth/sign-up` — ela já vem com uma árvore de
 categorias de mercado — e use o token devolvido nas demais chamadas.

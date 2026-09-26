@@ -12,6 +12,7 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="10.0.12" />
     <PackageVersion Include="MongoDB.Driver" Version="3.12.0" />
+    <PackageVersion Include="Testcontainers.MongoDb" Version="4.15.0" />
   </ItemGroup>
   <!-- xUnit v3 runs on Microsoft.Testing.Platform and carries its own runner, so there is
        no Microsoft.NET.Test.Sdk and no VSTest adapter here: the .NET 10 SDK refuses that
