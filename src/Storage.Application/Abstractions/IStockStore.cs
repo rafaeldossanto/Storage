@@ -24,6 +24,16 @@ public interface IStockStore
         bool availableOnly,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Batches by id, whatever their state - to put back what a sale took.</summary>
+    Task<IReadOnlyList<Batch>> ListBatchesByIdsAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>The movements a document caused - a sale's, to undo them.</summary>
+    Task<IReadOnlyList<StockMovement>> ListMovementsOfDocumentAsync(
+        Guid documentId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Available batches of the shop that have passed <paramref name="shopDate"/>.</summary>
     Task<IReadOnlyList<Batch>> ListExpiredBatchesAsync(DateOnly shopDate, CancellationToken cancellationToken = default);
 

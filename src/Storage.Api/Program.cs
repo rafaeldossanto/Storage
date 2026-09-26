@@ -52,6 +52,8 @@ var authSettings = AuthSettings.From(
 builder.Services.AddSingleton(authSettings);
 builder.Services.AddSingleton(new SessionPolicy(authSettings.RefreshTokenLifetime));
 builder.Services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
+builder.Services.AddSingleton<SalesAccessTokens>();
+builder.Services.AddSingleton<ISalesAccessIssuer>(provider => provider.GetRequiredService<SalesAccessTokens>());
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -172,6 +174,7 @@ app.MapReceivingEndpoints();
 app.MapDiscountEndpoints();
 app.MapReportEndpoints();
 app.MapCountEndpoints();
+app.MapSalesEndpoints();
 
 // Idempotent: creating an index that already exists is a no-op, so every boot guarantees
 // the unique indexes (barcode per shop, e-mail per platform) and the session TTL are in

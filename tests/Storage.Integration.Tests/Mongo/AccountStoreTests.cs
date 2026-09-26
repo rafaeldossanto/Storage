@@ -54,6 +54,47 @@ public sealed class AccountStoreTests(MongoFixture mongo)
     }
 
     [Fact]
+    public async Task Two_wrong_pins_typed_at_once_both_count()
+    {
+        var db = await mongo.NewDatabaseAsync(Token);
+        var store = Store(db);
+        var (shop, _) = await ProvisionAsync(store, "Mercadinho A", "dono@loja.com");
+
+        // Two attempts read the same state before either writes.
+        var first = (await store.FindTenantAsync(shop.Id, Token))!;
+        var second = (await store.FindTenantAsync(shop.Id, Token))!;
+        first.RecordSalesPinFailure(Now);
+        second.RecordSalesPinFailure(Now);
+
+        Assert.True(await store.SaveSalesPinAsync(first, expectedVersion: 0, Token));
+        Assert.False(await store.SaveSalesPinAsync(second, expectedVersion: 0, Token));
+
+        // The loser reads again and counts on top of the winner.
+        var again = (await store.FindTenantAsync(shop.Id, Token))!;
+        again.RecordSalesPinFailure(Now);
+        Assert.True(await store.SaveSalesPinAsync(again, expectedVersion: 1, Token));
+        Assert.Equal(2, (await store.FindTenantAsync(shop.Id, Token))!.SalesPinFailures);
+    }
+
+    [Fact]
+    public async Task A_shop_from_before_the_pin_existed_can_get_one()
+    {
+        var db = await mongo.NewDatabaseAsync(Token);
+        var store = Store(db);
+        var (shop, _) = await ProvisionAsync(store, "Mercadinho A", "dono@loja.com");
+        await db.Tenants.UpdateOneAsync(
+            Builders<Tenant>.Filter.Eq(stored => stored.Id, shop.Id),
+            Builders<Tenant>.Update.Unset(stored => stored.SalesPinVersion),
+            cancellationToken: Token);
+
+        var old = (await store.FindTenantAsync(shop.Id, Token))!;
+        old.SetSalesPin("hash");
+
+        Assert.True(await store.SaveSalesPinAsync(old, expectedVersion: 0, Token));
+        Assert.True((await store.FindTenantAsync(shop.Id, Token))!.HasSalesPin);
+    }
+
+    [Fact]
     public async Task Of_two_simultaneous_rotations_of_one_session_only_one_wins()
     {
         var db = await mongo.NewDatabaseAsync(Token);

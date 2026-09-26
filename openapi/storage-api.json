@@ -1780,6 +1780,171 @@
           }
         }
       }
+    },
+    "/api/sales": {
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterSaleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sales/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sales/pin": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesPinStatusDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Sales"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalesPinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/sales/unlock": {
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalesPinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesAccessDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sales/report": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SalesPeriod"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesReportDto"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2671,7 +2836,9 @@
           "ExpiryLoss",
           "DamageLoss",
           "CountAdjustment",
-          "ReturnToSupplier"
+          "ReturnToSupplier",
+          "Sale",
+          "SaleCancellation"
         ]
       },
       "PackagingDto": {
@@ -3224,6 +3391,20 @@
           }
         }
       },
+      "RegisterSaleRequest": {
+        "required": [
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SaleItemRequest"
+            }
+          }
+        }
+      },
       "RemoveStockRequest": {
         "required": [
           "quantity",
@@ -3254,6 +3435,254 @@
         "properties": {
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "SaleDto": {
+        "required": [
+          "id",
+          "soldAt",
+          "status",
+          "totalCents",
+          "lines",
+          "cancellableUntil"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "soldAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SaleStatus"
+          },
+          "totalCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SaleLineDto"
+            }
+          },
+          "cancellableUntil": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SaleItemRequest": {
+        "required": [
+          "productId",
+          "quantity"
+        ],
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SaleLineDto": {
+        "required": [
+          "productId",
+          "productName",
+          "quantity",
+          "unitPriceCents",
+          "totalCents"
+        ],
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitPriceCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalCents": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SalesAccessDto": {
+        "required": [
+          "token",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SalesBucketDto": {
+        "required": [
+          "start",
+          "sales",
+          "revenueCents",
+          "costCents",
+          "netCents"
+        ],
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sales": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "revenueCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "costCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "netCents": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SalesPeriod": {
+        "enum": [
+          "Day",
+          "Month",
+          "Year"
+        ]
+      },
+      "SalesPinRequest": {
+        "required": [
+          "pin"
+        ],
+        "type": "object",
+        "properties": {
+          "pin": {
+            "type": "string"
+          }
+        }
+      },
+      "SalesPinStatusDto": {
+        "required": [
+          "configured",
+          "lockedUntil"
+        ],
+        "type": "object",
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "lockedUntil": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "SalesReportDto": {
+        "required": [
+          "period",
+          "from",
+          "to",
+          "totals",
+          "buckets",
+          "products"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/SalesPeriod"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/SalesTotalsDto"
+          },
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SalesBucketDto"
+            }
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SoldProductDto"
+            }
+          }
+        }
+      },
+      "SaleStatus": {
+        "enum": [
+          "Completed",
+          "Cancelled"
+        ]
+      },
+      "SalesTotalsDto": {
+        "required": [
+          "sales",
+          "units",
+          "revenueCents",
+          "costCents",
+          "netCents"
+        ],
+        "type": "object",
+        "properties": {
+          "sales": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "units": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "revenueCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "costCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "netCents": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -3417,6 +3846,42 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "SoldProductDto": {
+        "required": [
+          "productId",
+          "name",
+          "units",
+          "revenueCents",
+          "costCents",
+          "netCents"
+        ],
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "units": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "revenueCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "costCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "netCents": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -3709,6 +4174,9 @@
     },
     {
       "name": "Counts"
+    },
+    {
+      "name": "Sales"
     }
   ]
 }

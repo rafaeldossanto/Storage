@@ -23,6 +23,13 @@ public interface IAccountStore
     Task<Tenant?> FindTenantAsync(Guid tenantId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Saves the shop's sales PIN and its count of wrong attempts - only if nobody changed
+    /// them since <paramref name="expectedVersion"/> was read. False when someone did: two
+    /// wrong PINs typed at once must count as two, not overwrite each other as one.
+    /// </summary>
+    Task<bool> SaveSalesPinAsync(Tenant tenant, long expectedVersion, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Creates a shop with its owner and starting catalogue. The owner goes in first: the
     /// unique e-mail index is what settles two sign-ups racing for the same address, and
     /// losing that race must leave nothing behind.

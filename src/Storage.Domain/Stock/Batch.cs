@@ -131,6 +131,32 @@ public sealed class Batch : ITenantScoped
         }
     }
 
+    /// <summary>Puts units back - a sale cancelled moments after it was rung up.</summary>
+    public void Return(int quantity)
+    {
+        // Units never leave a batch in larger numbers than it held, so they cannot come
+        // back in larger numbers either; asking for that is a bug in the caller.
+        if (quantity < 1 || RemainingQuantity + quantity > InitialQuantity)
+        {
+            throw new InvalidOperationException(
+                $"Cannot return {quantity} to a batch holding {RemainingQuantity} of {InitialQuantity}.");
+        }
+
+        // An expired batch has already been written off as a loss; units put back into it
+        // would never be sold nor counted as lost.
+        if (Status == BatchStatus.Expired)
+        {
+            throw new DomainException(DomainErrors.BatchExpired, "The batch these units came from has expired.");
+        }
+
+        RemainingQuantity += quantity;
+
+        if (Status == BatchStatus.Depleted)
+        {
+            Status = BatchStatus.Available;
+        }
+    }
+
     /// <summary>
     /// Takes the batch off sale for having passed its date and returns how many units were
     /// lost - the quantity the loss movement records.

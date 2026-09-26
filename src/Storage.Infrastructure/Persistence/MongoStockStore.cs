@@ -91,6 +91,30 @@ public sealed class MongoStockStore(MongoStorageContext context, ITenantContext 
             .ToArray();
     }
 
+    public async Task<IReadOnlyList<Batch>> ListBatchesByIdsAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await context.Batches
+            .Find(BatchesOfThisShop & Builders<Batch>.Filter.In(batch => batch.Id, ids))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<StockMovement>> ListMovementsOfDocumentAsync(
+        Guid documentId,
+        CancellationToken cancellationToken = default) =>
+        await context.StockMovements
+            .Find(Builders<StockMovement>.Filter.Eq(movement => movement.TenantId, tenant.TenantId)
+                & Builders<StockMovement>.Filter.Eq(movement => movement.DocumentId, documentId))
+            .ToListAsync(cancellationToken);
+
     public async Task<Paged<StockMovement>> ListMovementsAsync(
         Guid productId,
         PageRequest page,

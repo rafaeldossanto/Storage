@@ -5,6 +5,7 @@ using MongoDB.Bson.Serialization.Serializers;
 using Storage.Domain.Accounts;
 using Storage.Domain.Catalog;
 using Storage.Domain.Pricing;
+using Storage.Domain.Sales;
 using Storage.Domain.Stock;
 using Storage.Domain.ValueObjects;
 
@@ -65,6 +66,7 @@ public static class StorageBsonSerialization
             RegisterGoodsReceipt();
             RegisterDiscountRule();
             RegisterStockCount();
+            RegisterSale();
 
             _registered = true;
         }
@@ -93,6 +95,40 @@ public static class StorageBsonSerialization
             map.MapIdProperty(supplier => supplier.Id);
             map.SetIgnoreExtraElements(true);
         });
+
+    private static void RegisterSale()
+    {
+        BsonClassMap.TryRegisterClassMap<Sale>(map =>
+        {
+            map.AutoMap();
+            map.MapIdProperty(sale => sale.Id);
+            map.SetIgnoreExtraElements(true);
+
+            // Lines are exposed read-only; the backing field is what gets stored. The totals
+            // are sums of the lines, worked out on reading.
+            map.UnmapProperty(sale => sale.Lines);
+            map.UnmapProperty(sale => sale.Total);
+            map.UnmapProperty(sale => sale.Cost);
+            map.UnmapProperty(sale => sale.Net);
+            map.MapField("_lines").SetElementName("Lines");
+
+            // A real BSON date, like a session's expiry: the sales report has the database
+            // group sales by hour, day and month on the shop's clock, and date arithmetic
+            // only works on dates.
+            map.MapMember(sale => sale.SoldAt)
+                .SetSerializer(new DateTimeOffsetSerializer(BsonType.DateTime));
+        });
+
+        BsonClassMap.TryRegisterClassMap<SaleLine>(map =>
+        {
+            map.AutoMap();
+            map.SetIgnoreExtraElements(true);
+
+            // Derived: price times quantity, and that minus the cost.
+            map.UnmapProperty(line => line.Revenue);
+            map.UnmapProperty(line => line.Net);
+        });
+    }
 
     private static void RegisterGoodsReceipt()
     {

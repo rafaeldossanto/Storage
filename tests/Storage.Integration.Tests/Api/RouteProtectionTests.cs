@@ -47,6 +47,7 @@ public sealed class RouteProtectionTests(MongoFixture mongo) : IAsyncDisposable
                 "POST /api/team/",
                 "POST /api/team/{id:guid}/activate",
                 "POST /api/team/{id:guid}/deactivate",
+                "PUT /api/sales/pin",
             ],
             ownerOnly);
     }

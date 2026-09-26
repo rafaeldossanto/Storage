@@ -14,4 +14,7 @@ public interface IShopCalendar
 
     /// <summary>Midnight of <paramref name="date"/> where the shop is, as an instant.</summary>
     Task<DateTimeOffset> StartOfDayAsync(DateOnly date, CancellationToken cancellationToken = default);
+
+    /// <summary>The shop's IANA time zone, e.g. "America/Sao_Paulo".</summary>
+    Task<string> TimeZoneIdAsync(CancellationToken cancellationToken = default);
 }

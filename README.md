@@ -156,9 +156,18 @@ em `StorageBsonSerialization`.
 | Descontos | `/api/discounts`, `/api/products/{id}/price` | Regra por produto ou por ramo (Bebidas alcança Energéticos), prioridade, teto de cascata, janela "vence em N dias", prévia de alcance |
 | Contagem | `/api/counts` | Vários celulares contando ao mesmo tempo; o fechamento ajusta o estoque com justificativa obrigatória |
 | Relatórios | `/api/reports/losses` | Perdas do período por categoria, em reais |
+| Vendas | `/api/sales` | Venda bipada baixa o estoque pelos lotes que vencem primeiro, ao preço das regras de desconto, e guarda o custo desses lotes. Pode ser desfeita por 10 minutos |
+| Relatório de vendas | `/api/sales/report` | Vendido, custo e líquido do dia (por hora), do mês (por dia) ou do ano (por mês), no fuso da loja, e por produto. Trancado por PIN |
 
-Só o dono mexe na equipe, fecha ou cancela contagem e dispara a varredura de validade à
-mão.
+Só o dono mexe na equipe, fecha ou cancela contagem, dispara a varredura de validade à
+mão e define o PIN de vendas.
+
+**PIN de vendas**, como o PIN de um computador: 4 a 8 dígitos, definido pelo dono e
+separado de qualquer senha de login. Qualquer pessoa da equipe abre a área digitando o
+PIN e recebe um passe de 15 minutos, que vai no cabeçalho `X-Sales-Access` e só vale para
+quem o recebeu. Cinco PINs errados seguidos trancam a área por 15 minutos, e aí nem o PIN
+certo abre. A contagem de erros é gravada com compare-and-set, então duas tentativas ao
+mesmo tempo contam como duas.
 
 ## Estado
 

@@ -3,6 +3,7 @@ using Storage.Application.Accounts;
 using Storage.Application.Catalog;
 using Storage.Application.Pricing;
 using Storage.Application.Reports;
+using Storage.Application.Sales;
 using Storage.Application.Stock;
 
 namespace Storage.Application;
@@ -23,6 +24,9 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<ExpiryService>();
         services.AddScoped<ReportsService>();
         services.AddScoped<CountService>();
+        services.AddScoped<SalesService>();
+        services.AddScoped<SalesReportService>();
+        services.AddScoped<SalesAccessService>();
         services.AddScoped<PricingService>();
         services.AddScoped<SupplierService>();
 

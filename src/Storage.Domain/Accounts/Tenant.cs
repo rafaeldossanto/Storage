@@ -12,6 +12,12 @@ public sealed class Tenant : ITimestamped
     /// <summary>Where nearly every customer is; changeable per shop.</summary>
     public const string DefaultTimeZoneId = "America/Sao_Paulo";
 
+    /// <summary>Wrong PINs in a row before the sales area locks.</summary>
+    public const int SalesPinMaxFailures = 5;
+
+    /// <summary>How long the sales area stays locked after too many wrong PINs.</summary>
+    public static readonly TimeSpan SalesPinLockout = TimeSpan.FromMinutes(15);
+
     private Tenant()
     {
         // Driver materialisation.
@@ -42,6 +48,65 @@ public sealed class Tenant : ITimestamped
     public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset UpdatedAt { get; private set; }
+
+    /// <summary>
+    /// The PIN that opens the sales area, hashed like a password. Null until the owner sets
+    /// one. Separate from any account's password: it can be handed to a manager without
+    /// handing over the owner's account.
+    /// </summary>
+    public string? SalesPinHash { get; private set; }
+
+    public int SalesPinFailures { get; private set; }
+
+    public DateTimeOffset? SalesPinLockedUntil { get; private set; }
+
+    /// <summary>Bumped by every change to the PIN's state, so concurrent attempts cannot overwrite each other.</summary>
+    public long SalesPinVersion { get; private set; }
+
+    public bool HasSalesPin => SalesPinHash is not null;
+
+    public bool IsSalesPinLocked(DateTimeOffset now) => SalesPinLockedUntil > now;
+
+    public void SetSalesPin(string pinHash)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pinHash);
+
+        SalesPinHash = pinHash;
+        SalesPinFailures = 0;
+        SalesPinLockedUntil = null;
+        SalesPinVersion++;
+    }
+
+    /// <summary>
+    /// A wrong PIN. A four-digit PIN has ten thousand values, so guessing is stopped the way
+    /// a computer's PIN screen stops it: a few tries, then a wait.
+    /// </summary>
+    public void RecordSalesPinFailure(DateTimeOffset now)
+    {
+        SalesPinFailures++;
+
+        if (SalesPinFailures >= SalesPinMaxFailures)
+        {
+            SalesPinFailures = 0;
+            SalesPinLockedUntil = now + SalesPinLockout;
+        }
+
+        SalesPinVersion++;
+    }
+
+    /// <summary>A right PIN clears the count of wrong ones. Returns whether anything changed.</summary>
+    public bool RecordSalesPinSuccess()
+    {
+        if (SalesPinFailures == 0 && SalesPinLockedUntil is null)
+        {
+            return false;
+        }
+
+        SalesPinFailures = 0;
+        SalesPinLockedUntil = null;
+        SalesPinVersion++;
+        return true;
+    }
 
     public static Tenant Create(string name, string? timeZoneId = null) =>
         new(name, timeZoneId ?? DefaultTimeZoneId);

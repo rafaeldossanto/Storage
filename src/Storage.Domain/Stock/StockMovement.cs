@@ -10,6 +10,12 @@ public enum MovementType
     DamageLoss,
     CountAdjustment,
     ReturnToSupplier,
+
+    /// <summary>Units sold. The sale's own document keeps the price charged.</summary>
+    Sale,
+
+    /// <summary>Units of a cancelled sale going back to the batches they left.</summary>
+    SaleCancellation,
 }
 
 /// <summary>
@@ -97,6 +103,15 @@ public sealed class StockMovement : ITenantScoped
     {
         ArgumentNullException.ThrowIfNull(batch);
         return new StockMovement(batch, MovementType.CountAdjustment, batch.InitialQuantity, at, userId, countId, note);
+    }
+
+    /// <summary>Units of a cancelled sale going back into the batch they were sold from.</summary>
+    public static StockMovement SaleReturn(Batch batch, int quantity, DateTimeOffset at, Guid? userId, Guid saleId)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentOutOfRangeException.ThrowIfLessThan(quantity, 1);
+
+        return new StockMovement(batch, MovementType.SaleCancellation, quantity, at, userId, saleId, note: null);
     }
 
     /// <summary>Units leaving a batch for any reason other than expiry.</summary>

@@ -81,6 +81,20 @@ public static class ErrorCodes
 
     public const string PageInvalid = "page.invalid";
 
+    public const string SaleNotFound = "sale.not_found";
+    public const string SalesPeriodInvalid = "sales.period_invalid";
+
+    /// <summary>The owner has not set the sales PIN yet.</summary>
+    public const string SalesPinNotSet = "sales.pin_not_set";
+
+    public const string SalesPinWrong = "sales.pin_wrong";
+
+    /// <summary>Too many wrong PINs: the sales area is locked for a while.</summary>
+    public const string SalesPinLocked = "sales.pin_locked";
+
+    /// <summary>Someone else was typing the PIN at the same moment; trying again works.</summary>
+    public const string SalesPinBusy = "sales.pin_busy";
+
     public const string CountNotFound = "count.not_found";
     public const string CountAlreadyOpen = "count.already_open";
     public const string CountProductOutOfScope = "count.product_out_of_scope";

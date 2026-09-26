@@ -135,6 +135,29 @@ public sealed class MongoAccountStore(MongoStorageContext context, TimeProvider 
         return true;
     }
 
+    public async Task<bool> SaveSalesPinAsync(Tenant tenant, long expectedVersion, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tenant);
+
+        // A shop from before the PIN existed has no version stored at all; that reads as 0.
+        var versionAsRead = expectedVersion == 0
+            ? Builders<Tenant>.Filter.Or(
+                Builders<Tenant>.Filter.Eq(stored => stored.SalesPinVersion, 0L),
+                Builders<Tenant>.Filter.Exists(stored => stored.SalesPinVersion, false))
+            : Builders<Tenant>.Filter.Eq(stored => stored.SalesPinVersion, expectedVersion);
+
+        var result = await context.Tenants.UpdateOneAsync(
+            Builders<Tenant>.Filter.Eq(stored => stored.Id, tenant.Id) & versionAsRead,
+            Builders<Tenant>.Update
+                .Set(stored => stored.SalesPinHash, tenant.SalesPinHash)
+                .Set(stored => stored.SalesPinFailures, tenant.SalesPinFailures)
+                .Set(stored => stored.SalesPinLockedUntil, tenant.SalesPinLockedUntil)
+                .Set(stored => stored.SalesPinVersion, tenant.SalesPinVersion),
+            cancellationToken: cancellationToken);
+
+        return result.MatchedCount == 1;
+    }
+
     public async Task RevokeAllSessionsAsync(
         Guid userId,
         DateTimeOffset now,

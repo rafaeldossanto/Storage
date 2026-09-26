@@ -37,6 +37,15 @@ public static class DomainErrors
 
     public const string BatchQuantityInvalid = "batch.quantity_invalid";
     public const string BatchCostNegative = "batch.cost_negative";
+    public const string BatchExpired = "batch.expired";
+
+    public const string SaleEmpty = "sale.empty";
+    public const string SaleTooManyLines = "sale.too_many_lines";
+    public const string SaleQuantityInvalid = "sale.quantity_invalid";
+    public const string SaleNotCompleted = "sale.not_completed";
+    public const string SaleCancelWindowClosed = "sale.cancel_window_closed";
+
+    public const string SalesPinFormat = "sales.pin_format";
     public const string StockInsufficient = "stock.insufficient";
 
     public const string ReceiptQuantityInvalid = "receipt.quantity_invalid";

@@ -15,6 +15,9 @@ public sealed class ShopCalendar(MongoStorageContext context, ITenantContext ten
     public async Task<DateTimeOffset> StartOfDayAsync(DateOnly date, CancellationToken cancellationToken = default) =>
         (await ShopAsync(cancellationToken)).StartOf(date);
 
+    public async Task<string> TimeZoneIdAsync(CancellationToken cancellationToken = default) =>
+        (await ShopAsync(cancellationToken)).TimeZoneId;
+
     private async Task<Tenant> ShopAsync(CancellationToken cancellationToken) =>
         _shop ??= await context.Tenants
             .Find(Builders<Tenant>.Filter.Eq(shop => shop.Id, tenant.TenantId))

@@ -64,6 +64,16 @@ internal sealed class InMemoryAccountStore : IAccountStore
     public Task<Tenant?> FindTenantAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
         Task.FromResult(Tenants.FirstOrDefault(tenant => tenant.Id == tenantId));
 
+    // Shops are held by reference, so a change is already in place; the version check is
+    // the database's, tested against Mongo.
+    public int SalesPinSaves { get; private set; }
+
+    public Task<bool> SaveSalesPinAsync(Tenant tenant, long expectedVersion, CancellationToken cancellationToken = default)
+    {
+        SalesPinSaves++;
+        return Task.FromResult(true);
+    }
+
     public Task ProvisionAsync(
         Tenant tenant,
         User owner,

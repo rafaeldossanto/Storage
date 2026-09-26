@@ -3,6 +3,7 @@ using MongoDB.Driver;
 using Storage.Domain.Accounts;
 using Storage.Domain.Catalog;
 using Storage.Domain.Pricing;
+using Storage.Domain.Sales;
 using Storage.Domain.Stock;
 
 namespace Storage.Infrastructure.Persistence;
@@ -23,6 +24,7 @@ public sealed class MongoStorageContext
     public const string SuppliersCollection = "suppliers";
     public const string DiscountRulesCollection = "discountRules";
     public const string StockCountsCollection = "stockCounts";
+    public const string SalesCollection = "sales";
 
     /// <summary>
     /// Packagings live inside the product document, so the barcode index reaches into the
@@ -72,6 +74,8 @@ public sealed class MongoStorageContext
         Database.GetCollection<DiscountRule>(DiscountRulesCollection);
 
     public IMongoCollection<StockCount> StockCounts => Database.GetCollection<StockCount>(StockCountsCollection);
+
+    public IMongoCollection<Sale> Sales => Database.GetCollection<Sale>(SalesCollection);
 
     /// <summary>
     /// Creates the indexes the application depends on.
@@ -194,6 +198,23 @@ public sealed class MongoStorageContext
                 Builders<GoodsReceipt>.IndexKeys
                     .Ascending(receipt => receipt.TenantId)
                     .Descending(receipt => receipt.ReceivedAt)),
+            cancellationToken: cancellationToken);
+
+        // Sales by period: the sales report sums a day, a month or a year of them.
+        await Sales.Indexes.CreateOneAsync(
+            new CreateIndexModel<Sale>(
+                Builders<Sale>.IndexKeys
+                    .Ascending(sale => sale.TenantId)
+                    .Ascending(sale => sale.Status)
+                    .Ascending(sale => sale.SoldAt)),
+            cancellationToken: cancellationToken);
+
+        // What one document moved: the units a sale took, to put them back when it is cancelled.
+        await StockMovements.Indexes.CreateOneAsync(
+            new CreateIndexModel<StockMovement>(
+                Builders<StockMovement>.IndexKeys
+                    .Ascending(movement => movement.TenantId)
+                    .Ascending(movement => movement.DocumentId)),
             cancellationToken: cancellationToken);
 
         // Recent counts, and the open one - at most one per shop.

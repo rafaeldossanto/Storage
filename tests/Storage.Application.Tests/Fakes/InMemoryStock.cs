@@ -18,6 +18,8 @@ internal sealed class FixedCalendar(DateOnly today) : IShopCalendar
     // UTC midnight: the fake has no time zone of its own.
     public Task<DateTimeOffset> StartOfDayAsync(DateOnly date, CancellationToken cancellationToken = default) =>
         Task.FromResult(new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero));
+
+    public Task<string> TimeZoneIdAsync(CancellationToken cancellationToken = default) => Task.FromResult("UTC");
 }
 
 /// <summary>
@@ -39,6 +41,14 @@ internal sealed class InMemoryStockStore(Guid tenantId) : IStockStore
         Task.FromResult<IReadOnlyList<Batch>>(Batches
             .Where(batch => batch.TenantId == tenantId && batch.ProductId == productId)
             .Where(batch => !availableOnly || batch.Status == BatchStatus.Available)
+            .ToArray());
+
+    public Task<IReadOnlyList<Batch>> ListBatchesByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Batch>>(Batches.Where(batch => batch.TenantId == tenantId && ids.Contains(batch.Id)).ToArray());
+
+    public Task<IReadOnlyList<StockMovement>> ListMovementsOfDocumentAsync(Guid documentId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<StockMovement>>(Movements
+            .Where(movement => movement.TenantId == tenantId && movement.DocumentId == documentId)
             .ToArray());
 
     public Task<IReadOnlyList<Batch>> ListExpiredBatchesAsync(DateOnly shopDate, CancellationToken cancellationToken = default) =>
@@ -212,5 +222,32 @@ internal sealed class InMemoryCountStore(ITenantContext tenant) : ICountStore
 
         change(count);
         return Task.FromResult(true);
+    }
+}
+
+/// <summary>
+/// Sales live where the stock commit put them - the stock fake's documents. The summary is
+/// whatever a test sets: the sums themselves are the database's job, tested against Mongo.
+/// </summary>
+internal sealed class InMemorySaleStore(InMemoryStockStore stock, ITenantContext tenant) : ISaleStore
+{
+    public SalesSummary Summary { get; set; } = new(SalesFigures.None, [], []);
+
+    public (DateTimeOffset From, DateTimeOffset To, SalesBucket Bucket, string TimeZoneId)? LastQuery { get; private set; }
+
+    public Task<Storage.Domain.Sales.Sale?> FindAsync(Guid id, CancellationToken cancellationToken = default) =>
+        Task.FromResult(stock.Documents.OfType<Storage.Domain.Sales.Sale>()
+            .FirstOrDefault(sale => sale.TenantId == tenant.TenantId && sale.Id == id));
+
+    public Task<SalesSummary> SummarizeAsync(
+        DateTimeOffset from,
+        DateTimeOffset to,
+        SalesBucket bucket,
+        string timeZoneId,
+        int topProducts,
+        CancellationToken cancellationToken = default)
+    {
+        LastQuery = (from, to, bucket, timeZoneId);
+        return Task.FromResult(Summary);
     }
 }

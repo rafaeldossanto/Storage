@@ -1,5 +1,6 @@
 using MongoDB.Driver;
 using Storage.Application.Errors;
+using Storage.Domain.Sales;
 using Storage.Domain.Stock;
 
 namespace Storage.Infrastructure.Persistence;
@@ -19,6 +20,8 @@ internal static class StockDocuments
         {
             GoodsReceipt receipt => context.GoodsReceipts.InsertOneAsync(
                 session, receipt, cancellationToken: cancellationToken),
+
+            Sale sale => context.Sales.InsertOneAsync(session, sale, cancellationToken: cancellationToken),
 
             // A type nobody taught this switch about is a bug to find at once, not data to
             // drop on the floor.
@@ -64,6 +67,30 @@ internal static class StockDocuments
 
                 break;
 
+            // Two people cancelling the same sale at once would put its units back twice;
+            // the second finds the version moved and its whole commit is refused.
+            case Sale sale:
+                var stillAsRead = Builders<Sale>.Filter.Eq(stored => stored.Id, sale.Id)
+                    & Builders<Sale>.Filter.Eq(stored => stored.TenantId, sale.TenantId)
+                    & Builders<Sale>.Filter.Eq(stored => stored.Version, expectedVersion);
+
+                var cancel = Builders<Sale>.Update
+                    .Set(stored => stored.Status, sale.Status)
+                    .Set(stored => stored.CancelledBy, sale.CancelledBy)
+                    .Set(stored => stored.CancelledAt, sale.CancelledAt)
+                    .Inc(stored => stored.Version, 1L);
+
+                var cancelled = await context.Sales.UpdateOneAsync(session, stillAsRead, cancel, cancellationToken: cancellationToken);
+
+                if (cancelled.MatchedCount == 0)
+                {
+                    throw UseCaseException.Conflict(
+                        ErrorCodes.StockChangedConcurrently,
+                        "The sale changed while it was being cancelled; nothing was saved.");
+                }
+
+                break;
+
             default:
                 throw new NotSupportedException(
                     $"Updating stock documents of type {document.GetType().Name} is not supported.");
@@ -74,6 +101,7 @@ internal static class StockDocuments
     {
         GoodsReceipt receipt => receipt.TenantId,
         StockCount count => count.TenantId,
+        Sale sale => sale.TenantId,
         _ => throw new NotSupportedException($"Unknown stock document type {document.GetType().Name}."),
     };
 }
