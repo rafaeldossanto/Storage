@@ -103,11 +103,17 @@ builder.Services.AddRateLimiter(options =>
 
     // Ten attempts a minute per address on the auth routes: plenty for a person, useless
     // for a script. Behind a reverse proxy this needs forwarded headers configured, or
-    // every client shares the proxy's address (task 23, deploy).
+    // every client shares the proxy's address (task 23, deploy). Read per request rather
+    // than once here, so the value can come from any configuration source, tests included.
     options.AddPolicy(AuthEndpoints.RateLimitPolicy, context =>
-        RateLimitPartition.GetFixedWindowLimiter(
+    {
+        var permits = context.RequestServices.GetRequiredService<IConfiguration>()
+            .GetValue("RateLimiting:AuthPermitsPerMinute", 10);
+
+        return RateLimitPartition.GetFixedWindowLimiter(
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = permits, Window = TimeSpan.FromMinutes(1) });
+    });
 });
 
 builder.Services.ConfigureHttpJsonOptions(options =>

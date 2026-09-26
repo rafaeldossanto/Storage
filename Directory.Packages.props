@@ -16,6 +16,7 @@
        no Microsoft.NET.Test.Sdk and no VSTest adapter here: the .NET 10 SDK refuses that
        combination outright. -->
   <ItemGroup Label="Testing">
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
     <PackageVersion Include="xunit.v3" Version="4.0.1" />
   </ItemGroup>
 </Project>
