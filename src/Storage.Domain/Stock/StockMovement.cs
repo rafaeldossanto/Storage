@@ -92,6 +92,13 @@ public sealed class StockMovement : ITenantScoped
         return new StockMovement(batch, MovementType.ExpiryLoss, -lostQuantity, at, userId: null, documentId: null, note: null);
     }
 
+    /// <summary>Units a count found on the shelf that the ledger did not know about.</summary>
+    public static StockMovement Adjustment(Batch batch, DateTimeOffset at, Guid? userId, Guid? countId, string? note)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        return new StockMovement(batch, MovementType.CountAdjustment, batch.InitialQuantity, at, userId, countId, note);
+    }
+
     /// <summary>Units leaving a batch for any reason other than expiry.</summary>
     public static StockMovement Outflow(
         MovementType type,

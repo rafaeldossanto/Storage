@@ -1404,6 +1404,244 @@
           }
         }
       }
+    },
+    "/api/counts": {
+      "get": {
+        "tags": [
+          "Counts"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CountSummaryDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Counts"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartCountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/counts/{id}": {
+      "get": {
+        "tags": [
+          "Counts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/counts/{id}/scans": {
+      "post": {
+        "tags": [
+          "Counts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/counts/{id}/items/{productId}": {
+      "put": {
+        "tags": [
+          "Counts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetCountedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/counts/{id}/close": {
+      "post": {
+        "tags": [
+          "Counts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseCountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/counts/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Counts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountDto"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1650,6 +1888,154 @@
             "items": {
               "$ref": "#/components/schemas/CategoryTreeNode"
             }
+          }
+        }
+      },
+      "CloseCountRequest": {
+        "required": [
+          "justification"
+        ],
+        "type": "object",
+        "properties": {
+          "justification": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CountDto": {
+        "required": [
+          "id",
+          "categoryId",
+          "status",
+          "startedAt",
+          "closedAt",
+          "justification",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "categoryId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StockCountStatus"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "closedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "justification": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountItemDto"
+            }
+          }
+        }
+      },
+      "CountItemDto": {
+        "required": [
+          "productId",
+          "productName",
+          "counted",
+          "system",
+          "difference"
+        ],
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "counted": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "system": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "difference": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "CountSummaryDto": {
+        "required": [
+          "id",
+          "categoryId",
+          "status",
+          "startedAt",
+          "closedAt",
+          "itemCount",
+          "missingUnits",
+          "extraUnits"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "categoryId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StockCountStatus"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "closedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "itemCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "missingUnits": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "extraUnits": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -2659,6 +3045,34 @@
           }
         }
       },
+      "ScanRequest": {
+        "required": [
+          "barcode"
+        ],
+        "type": "object",
+        "properties": {
+          "barcode": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32",
+            "default": 1
+          }
+        }
+      },
+      "SetCountedRequest": {
+        "required": [
+          "quantity"
+        ],
+        "type": "object",
+        "properties": {
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "SignInRequest": {
         "required": [
           "email",
@@ -2702,6 +3116,25 @@
             ]
           }
         }
+      },
+      "StartCountRequest": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "StockCountStatus": {
+        "enum": [
+          "Open",
+          "Closed",
+          "Cancelled"
+        ]
       },
       "StockItemDto": {
         "required": [
@@ -2970,6 +3403,9 @@
     },
     {
       "name": "Suppliers"
+    },
+    {
+      "name": "Counts"
     }
   ]
 }

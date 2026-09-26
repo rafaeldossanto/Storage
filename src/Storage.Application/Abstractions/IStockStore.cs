@@ -85,6 +85,7 @@ public sealed class StockChanges
     private readonly Dictionary<Guid, ChangedBatch> _changedBatches = [];
     private readonly List<StockMovement> _movements = [];
     private readonly List<object> _documents = [];
+    private readonly List<(object Document, long ExpectedVersion)> _updatedDocuments = [];
 
     public IReadOnlyList<Batch> NewBatches => _newBatches;
 
@@ -95,14 +96,23 @@ public sealed class StockChanges
     /// <summary>Documents written alongside - a goods receipt, a count.</summary>
     public IReadOnlyList<object> Documents => _documents;
 
+    /// <summary>
+    /// Existing documents rewritten alongside - a count being closed - each only if its
+    /// version still matches what was read.
+    /// </summary>
+    public IReadOnlyList<(object Document, long ExpectedVersion)> UpdatedDocuments => _updatedDocuments;
+
     public bool IsEmpty =>
-        _newBatches.Count == 0 && _changedBatches.Count == 0 && _movements.Count == 0 && _documents.Count == 0;
+        _newBatches.Count == 0 && _changedBatches.Count == 0 && _movements.Count == 0 && _documents.Count == 0
+        && _updatedDocuments.Count == 0;
 
     public void Add(Batch batch) => _newBatches.Add(batch);
 
     public void Record(StockMovement movement) => _movements.Add(movement);
 
     public void Attach(object document) => _documents.Add(document);
+
+    public void Update(object document, long expectedVersion) => _updatedDocuments.Add((document, expectedVersion));
 
     /// <summary>Changes an existing batch, remembering what it looked like first.</summary>
     public T Change<T>(Batch batch, Func<Batch, T> change)

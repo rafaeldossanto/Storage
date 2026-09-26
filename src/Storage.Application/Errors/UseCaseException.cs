@@ -75,6 +75,10 @@ public static class ErrorCodes
     public const string DiscountNotFound = "discount.not_found";
 
     public const string ReportPeriodInvalid = "report.period_invalid";
+
+    public const string CountNotFound = "count.not_found";
+    public const string CountAlreadyOpen = "count.already_open";
+    public const string CountProductOutOfScope = "count.product_out_of_scope";
     public const string DiscountTargetNotFound = "discount.target_not_found";
     public const string StockNoteTooLong = "stock.note_too_long";
 

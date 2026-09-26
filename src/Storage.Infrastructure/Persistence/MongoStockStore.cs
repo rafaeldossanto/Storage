@@ -212,6 +212,11 @@ public sealed class MongoStockStore(MongoStorageContext context, ITenantContext 
                 {
                     await StockDocuments.InsertAsync(context, session, document, token);
                 }
+
+                foreach (var (document, expectedVersion) in changes.UpdatedDocuments)
+                {
+                    await StockDocuments.UpdateAsync(context, session, document, expectedVersion, token);
+                }
             },
             cancellationToken);
     }
@@ -252,7 +257,8 @@ public sealed class MongoStockStore(MongoStorageContext context, ITenantContext 
         var foreign = changes.NewBatches.Any(batch => batch.TenantId != tenant.TenantId)
             || changes.ChangedBatches.Any(changed => changed.Batch.TenantId != tenant.TenantId)
             || changes.Movements.Any(movement => movement.TenantId != tenant.TenantId)
-            || changes.Documents.Any(document => StockDocuments.TenantOf(document) != tenant.TenantId);
+            || changes.Documents.Any(document => StockDocuments.TenantOf(document) != tenant.TenantId)
+            || changes.UpdatedDocuments.Any(updated => StockDocuments.TenantOf(updated.Document) != tenant.TenantId);
 
         if (foreign)
         {

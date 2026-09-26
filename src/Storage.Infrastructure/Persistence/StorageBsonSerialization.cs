@@ -64,6 +64,7 @@ public static class StorageBsonSerialization
             RegisterSupplier();
             RegisterGoodsReceipt();
             RegisterDiscountRule();
+            RegisterStockCount();
 
             _registered = true;
         }
@@ -124,6 +125,26 @@ public static class StorageBsonSerialization
             map.MapIdProperty(rule => rule.Id);
             map.SetIgnoreExtraElements(true);
         });
+
+    private static void RegisterStockCount()
+    {
+        BsonClassMap.TryRegisterClassMap<StockCount>(map =>
+        {
+            map.AutoMap();
+            map.MapIdProperty(count => count.Id);
+            map.SetIgnoreExtraElements(true);
+
+            // Items are exposed read-only; the backing field is what gets stored.
+            map.UnmapProperty(count => count.Items);
+            map.MapField("_items").SetElementName("Items");
+        });
+
+        BsonClassMap.TryRegisterClassMap<CountedItem>(map =>
+        {
+            map.AutoMap();
+            map.SetIgnoreExtraElements(true);
+        });
+    }
 
     private static void RegisterTenant() =>
         BsonClassMap.TryRegisterClassMap<Tenant>(map =>

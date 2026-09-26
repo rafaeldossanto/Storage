@@ -22,6 +22,7 @@ public sealed class MongoStorageContext
     public const string GoodsReceiptsCollection = "goodsReceipts";
     public const string SuppliersCollection = "suppliers";
     public const string DiscountRulesCollection = "discountRules";
+    public const string StockCountsCollection = "stockCounts";
 
     /// <summary>
     /// Packagings live inside the product document, so the barcode index reaches into the
@@ -69,6 +70,8 @@ public sealed class MongoStorageContext
 
     public IMongoCollection<DiscountRule> DiscountRules =>
         Database.GetCollection<DiscountRule>(DiscountRulesCollection);
+
+    public IMongoCollection<StockCount> StockCounts => Database.GetCollection<StockCount>(StockCountsCollection);
 
     /// <summary>
     /// Creates the indexes the application depends on.
@@ -191,6 +194,14 @@ public sealed class MongoStorageContext
                 Builders<GoodsReceipt>.IndexKeys
                     .Ascending(receipt => receipt.TenantId)
                     .Descending(receipt => receipt.ReceivedAt)),
+            cancellationToken: cancellationToken);
+
+        // Recent counts, and the open one - at most one per shop.
+        await StockCounts.Indexes.CreateOneAsync(
+            new CreateIndexModel<StockCount>(
+                Builders<StockCount>.IndexKeys
+                    .Ascending(count => count.TenantId)
+                    .Descending(count => count.StartedAt)),
             cancellationToken: cancellationToken);
 
         // The active rules of a shop: read on every price quote.

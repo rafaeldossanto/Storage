@@ -162,3 +162,41 @@ internal sealed class InMemoryDiscountRuleRepository(ITenantContext tenant) : ID
 
     public Task UpdateAsync(Storage.Domain.Pricing.DiscountRule rule, CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
+
+internal sealed class InMemoryCountStore(ITenantContext tenant) : ICountStore
+{
+    public List<StockCount> Stored { get; } = [];
+
+    public Task<StockCount?> FindAsync(Guid id, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Stored.FirstOrDefault(count => count.TenantId == tenant.TenantId && count.Id == id));
+
+    public Task<StockCount?> FindOpenAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(Stored.FirstOrDefault(count => count.TenantId == tenant.TenantId && count.Status == StockCountStatus.Open));
+
+    public Task<IReadOnlyList<StockCount>> ListRecentAsync(int limit, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<StockCount>>(Stored.Where(count => count.TenantId == tenant.TenantId).Take(limit).ToArray());
+
+    public Task AddAsync(StockCount count, CancellationToken cancellationToken = default)
+    {
+        Stored.Add(count);
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> SetCountedAsync(Guid countId, Guid productId, int quantity, CancellationToken cancellationToken = default) =>
+        Apply(countId, count => count.SetCounted(productId, quantity));
+
+    public Task<bool> AddCountedAsync(Guid countId, Guid productId, int units, CancellationToken cancellationToken = default) =>
+        Apply(countId, count => count.AddCounted(productId, units));
+
+    private Task<bool> Apply(Guid countId, Action<StockCount> change)
+    {
+        var count = Stored.FirstOrDefault(stored => stored.Id == countId && stored.Status == StockCountStatus.Open);
+        if (count is null)
+        {
+            return Task.FromResult(false);
+        }
+
+        change(count);
+        return Task.FromResult(true);
+    }
+}

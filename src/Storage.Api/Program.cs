@@ -145,6 +145,7 @@ app.MapStockEndpoints();
 app.MapReceivingEndpoints();
 app.MapDiscountEndpoints();
 app.MapReportEndpoints();
+app.MapCountEndpoints();
 
 // Idempotent: creating an index that already exists is a no-op, so every boot guarantees
 // the unique indexes (barcode per shop, e-mail per platform) and the session TTL are in
