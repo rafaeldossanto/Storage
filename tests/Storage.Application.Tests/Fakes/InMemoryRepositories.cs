@@ -103,7 +103,7 @@ internal sealed class InMemoryProductRepository(ITenantContext tenant, InMemoryC
         PageRequest page,
         CancellationToken cancellationToken = default) =>
         Task.FromResult(Paged<Product>.Slice(
-            Alphabetical(OfThisShop().Where(product => product.Name.Contains(term, StringComparison.OrdinalIgnoreCase))),
+            Alphabetical(OfThisShop().Where(product => ContainsIgnoringAccents(product.Name, term))),
             page));
 
     public Task<Paged<Product>> ListByCategoryAsync(
@@ -114,6 +114,13 @@ internal sealed class InMemoryProductRepository(ITenantContext tenant, InMemoryC
         Task.FromResult(Paged<Product>.Slice(
             Alphabetical(OfThisShop().Where(product => InBranch(product.CategoryId, category, includeDescendants))),
             page));
+
+    // Stands in for the database search, which ignores case and accents.
+    private static bool ContainsIgnoringAccents(string name, string term) =>
+        System.Globalization.CultureInfo.InvariantCulture.CompareInfo.IndexOf(
+            name,
+            term.Trim(),
+            System.Globalization.CompareOptions.IgnoreCase | System.Globalization.CompareOptions.IgnoreNonSpace) >= 0;
 
     // Stands in for the database's Portuguese collation.
     private static Product[] Alphabetical(IEnumerable<Product> products) =>

@@ -10,4 +10,8 @@
     <ProjectReference Include="..\Storage.Application\Storage.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Storage.Integration.Tests" />
+  </ItemGroup>
+
 </Project>

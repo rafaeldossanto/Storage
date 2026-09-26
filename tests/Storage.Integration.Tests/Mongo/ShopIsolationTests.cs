@@ -186,6 +186,32 @@ public sealed class ShopIsolationTests(MongoFixture mongo)
         Assert.Single((await Products(db, ShopA).SearchAsync("(1L", PageRequest.First(), Token)).Items);
     }
 
+    [Theory]
+    [InlineData("acucar")]
+    [InlineData("AÇÚCAR")]
+    [InlineData("açucar cristal")]
+    public async Task Name_search_ignores_accents_in_what_was_typed(string typed)
+    {
+        var db = await mongo.NewDatabaseAsync(Token);
+        await Products(db, ShopA).AddAsync(NewProduct(ShopA, "7891000000014", "Açúcar Cristal 1kg"), Token);
+
+        var found = Assert.Single((await Products(db, ShopA).SearchAsync(typed, PageRequest.First(), Token)).Items);
+
+        Assert.Equal("Açúcar Cristal 1kg", found.Name);
+    }
+
+    [Fact]
+    public async Task Name_search_ignores_accents_in_what_was_saved()
+    {
+        var db = await mongo.NewDatabaseAsync(Token);
+        await Products(db, ShopA).AddAsync(NewProduct(ShopA, "7891000000014", "Sabao em Po 1kg"), Token);
+        await Products(db, ShopA).AddAsync(NewProduct(ShopA, "7891000000021", "ÁGUA TÔNICA 350ml"), Token);
+
+        Assert.Single((await Products(db, ShopA).SearchAsync("sabão em pó", PageRequest.First(), Token)).Items);
+        Assert.Single((await Products(db, ShopA).SearchAsync("agua tonica", PageRequest.First(), Token)).Items);
+        Assert.Empty((await Products(db, ShopA).SearchAsync("agua com gas", PageRequest.First(), Token)).Items);
+    }
+
     [Fact]
     public async Task A_product_comes_back_from_the_database_exactly_as_it_went_in()
     {

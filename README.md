@@ -133,8 +133,11 @@ em `StorageBsonSerialization`.
 - **Listas longas vêm paginadas**: `?page=1&pageSize=50` (máximo 200), e a resposta é
   `{ items, page, pageSize, total, totalPages }`. Produtos, estoque por categoria, abaixo
   do mínimo, entradas, contagens e o histórico de movimentos de um produto. Produto vem em
-  ordem alfabética do português ("Água" entre os A, não depois do Z). Página fora do
-  intervalo é recusada com `page.invalid`, sem ajuste silencioso.
+  ordem alfabética do português ("Água" entre os A, não depois do Z; "3" antes de "13").
+  Página fora do intervalo é recusada com `page.invalid`, sem ajuste silencioso.
+- **Busca por nome ignora maiúsculas e acentos, dos dois lados**: "acucar" acha "Açúcar",
+  e "sabão" acha um produto salvo como "Sabao". O termo vira um padrão com as variantes
+  acentuadas de cada letra; o nome gravado fica como foi digitado, sem campo derivado.
 - **404 no código de barras é caminho normal**: `GET /api/products/by-barcode/{codigo}`
   sem produto é a deixa para a tela abrir o cadastro já preenchido.
 - **OpenAPI** gerado a cada build em `openapi/storage-api.json`, versionado — é ali que o

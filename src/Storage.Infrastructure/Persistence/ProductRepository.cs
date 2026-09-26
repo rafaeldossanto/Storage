@@ -76,10 +76,9 @@ public sealed class ProductRepository(
             return Paged<Product>.Empty(page);
         }
 
-        // Case-insensitive contains: good enough for a few thousand products, and the
-        // escape keeps a customer's search text from being read as a pattern. A text index
-        // is the upgrade path if a shop's catalogue outgrows it.
-        var pattern = new BsonRegularExpression(Regex.Escape(term.Trim()), "i");
+        // Contains, ignoring case and accents: good enough for a few thousand products. A
+        // text index is the upgrade path if a shop's catalogue outgrows it.
+        var pattern = new BsonRegularExpression(AccentInsensitive.Pattern(term), "i");
 
         var filter = Builders<Product>.Filter.And(
             OfThisShop,
