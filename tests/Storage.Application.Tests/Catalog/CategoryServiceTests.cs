@@ -68,9 +68,11 @@ public sealed class CategoryServiceTests
 
         await _service.MoveAsync(energy.Id, new MoveCategoryRequest(grocery.Id), Token);
 
-        // Writing only the moved node would strand its children under the old path.
+        // Writing only the moved node would strand its children under the old path. Compared
+        // as sets: two version 7 Guids made in the same millisecond are not ordered by
+        // creation, so sorting them says nothing about which came first.
         Assert.Equal(
-            [energy.Id, sugarFree.Id],
+            new[] { energy.Id, sugarFree.Id }.Order(),
             _categories.LastBulkUpdate.Order());
 
         var groceryPath = _categories.Stored.Single(c => c.Id == grocery.Id).Path;
