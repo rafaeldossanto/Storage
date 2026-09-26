@@ -10,6 +10,12 @@ public enum ErrorKind
 
     /// <summary>The input cannot be understood, like a barcode with a wrong check digit.</summary>
     Invalid,
+
+    /// <summary>The caller is not who they say, or no longer has a valid session.</summary>
+    Unauthorized,
+
+    /// <summary>Too many wrong attempts; the account is locked for a while.</summary>
+    TooManyAttempts,
 }
 
 /// <summary>
@@ -34,6 +40,9 @@ public sealed class UseCaseException(ErrorKind kind, string code, string message
 
     public static UseCaseException Invalid(string code, string message) =>
         new(ErrorKind.Invalid, code, message);
+
+    public static UseCaseException Unauthorized(string code, string message) =>
+        new(ErrorKind.Unauthorized, code, message);
 }
 
 /// <summary>
@@ -50,4 +59,19 @@ public static class ErrorCodes
 
     public const string BarcodeInvalid = "barcode.invalid";
     public const string BarcodeTaken = "barcode.taken";
+
+    public const string EmailTaken = "account.email_taken";
+    public const string PasswordInvalid = "account.password_invalid";
+    public const string UserNotFound = "account.not_found";
+
+    /// <summary>
+    /// Wrong e-mail and wrong password answer with this same code, on purpose: telling
+    /// them apart would let anyone test which addresses have an account.
+    /// </summary>
+    public const string InvalidCredentials = "auth.invalid_credentials";
+
+    public const string AccountInactive = "auth.account_inactive";
+    public const string LockedOut = "auth.locked_out";
+    public const string SessionInvalid = "auth.session_invalid";
+    public const string ShopInactive = "auth.shop_inactive";
 }

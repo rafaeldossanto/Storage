@@ -2,6 +2,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Bson.Serialization.Serializers;
+using Storage.Domain.Accounts;
 using Storage.Domain.Catalog;
 using Storage.Domain.ValueObjects;
 
@@ -47,14 +48,48 @@ public static class StorageBsonSerialization
 
             BsonSerializer.TryRegisterSerializer(new MoneySerializer());
             BsonSerializer.TryRegisterSerializer(new GtinSerializer());
+            BsonSerializer.TryRegisterSerializer(new EmailAddressSerializer());
 
             RegisterCategory();
             RegisterProduct();
             RegisterPackagingUnit();
+            RegisterTenant();
+            RegisterUser();
+            RegisterSession();
 
             _registered = true;
         }
     }
+
+    private static void RegisterTenant() =>
+        BsonClassMap.TryRegisterClassMap<Tenant>(map =>
+        {
+            map.AutoMap();
+            map.MapIdProperty(tenant => tenant.Id);
+            map.SetIgnoreExtraElements(true);
+        });
+
+    private static void RegisterUser() =>
+        BsonClassMap.TryRegisterClassMap<User>(map =>
+        {
+            map.AutoMap();
+            map.MapIdProperty(user => user.Id);
+            map.SetIgnoreExtraElements(true);
+        });
+
+    private static void RegisterSession() =>
+        BsonClassMap.TryRegisterClassMap<Session>(map =>
+        {
+            map.AutoMap();
+            map.MapIdProperty(session => session.Id);
+            map.SetIgnoreExtraElements(true);
+
+            // A real BSON date, unlike every other timestamp here: the TTL index that
+            // deletes expired sessions only understands dates. Sessions are the one thing
+            // that may simply disappear - they are plumbing, not business records.
+            map.MapMember(session => session.ExpiresAt)
+                .SetSerializer(new DateTimeOffsetSerializer(BsonType.DateTime));
+        });
 
     private static void RegisterCategory() =>
         BsonClassMap.TryRegisterClassMap<Category>(map =>
@@ -130,5 +165,21 @@ public static class StorageBsonSerialization
         public override Gtin Deserialize(
             BsonDeserializationContext context,
             BsonDeserializationArgs args) => Gtin.Parse(context.Reader.ReadString());
+    }
+
+    /// <summary>
+    /// Stored already normalised, so the unique index compares addresses the same way the
+    /// application does.
+    /// </summary>
+    private sealed class EmailAddressSerializer : StructSerializerBase<EmailAddress>
+    {
+        public override void Serialize(
+            BsonSerializationContext context,
+            BsonSerializationArgs args,
+            EmailAddress value) => context.Writer.WriteString(value.Value);
+
+        public override EmailAddress Deserialize(
+            BsonDeserializationContext context,
+            BsonDeserializationArgs args) => EmailAddress.Parse(context.Reader.ReadString());
     }
 }

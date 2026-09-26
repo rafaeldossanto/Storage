@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
 using Storage.Application.Abstractions;
 using Storage.Infrastructure.Persistence;
+using Storage.Infrastructure.Security;
 
 namespace Storage.Infrastructure;
 
@@ -32,6 +33,13 @@ public static class InfrastructureServiceCollectionExtensions
         // Scoped: a repository reads the tenant of the request it is serving.
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+
+        // Not tenant-scoped by design: sign-in runs before the shop is known.
+        services.AddScoped<IAccountStore, MongoAccountStore>();
+
+        // Singleton so the decoy hash used to hide which e-mails exist is computed once.
+        services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
 
         return services;
     }

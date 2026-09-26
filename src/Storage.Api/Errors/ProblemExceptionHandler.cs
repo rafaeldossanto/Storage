@@ -19,6 +19,12 @@ public sealed class ProblemExceptionHandler(IProblemDetailsService problemDetail
 {
     public const string NoTenantCode = "auth.no_tenant";
 
+    /// <summary>No token, or one that expired: the front end refreshes, then retries.</summary>
+    public const string UnauthenticatedCode = "auth.unauthenticated";
+
+    /// <summary>Signed in, but the role does not allow it - staff trying to change the team.</summary>
+    public const string ForbiddenCode = "auth.forbidden";
+
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
         Exception exception,
@@ -28,6 +34,8 @@ public sealed class ProblemExceptionHandler(IProblemDetailsService problemDetail
         {
             UseCaseException { Kind: ErrorKind.NotFound } e => (Status: StatusCodes.Status404NotFound, e.Code),
             UseCaseException { Kind: ErrorKind.Conflict } e => (Status: StatusCodes.Status409Conflict, e.Code),
+            UseCaseException { Kind: ErrorKind.Unauthorized } e => (Status: StatusCodes.Status401Unauthorized, e.Code),
+            UseCaseException { Kind: ErrorKind.TooManyAttempts } e => (Status: StatusCodes.Status429TooManyRequests, e.Code),
             UseCaseException e => (Status: StatusCodes.Status422UnprocessableEntity, e.Code),
             DomainException e => (Status: StatusCodes.Status422UnprocessableEntity, e.Code),
             MissingTenantException => (Status: StatusCodes.Status401Unauthorized, Code: NoTenantCode),
@@ -41,17 +49,33 @@ public sealed class ProblemExceptionHandler(IProblemDetailsService problemDetail
 
         httpContext.Response.StatusCode = answer.Status;
 
-        return await problemDetails.TryWriteAsync(new ProblemDetailsContext
-        {
-            HttpContext = httpContext,
-            Exception = exception,
-            ProblemDetails = new ProblemDetails
-            {
-                Status = answer.Status,
-                Title = answer.Code,
-                Detail = exception.Message,
-                Extensions = { ["code"] = answer.Code },
-            },
-        });
+        return await problemDetails.TryWriteAsync(Context(httpContext, answer.Status, answer.Code, exception.Message, exception));
     }
+
+    /// <summary>Writes the same problem shape for refusals that are not exceptions.</summary>
+    public static async Task WriteAsync(HttpContext httpContext, int status, string code)
+    {
+        httpContext.Response.StatusCode = status;
+
+        var service = httpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
+        await service.WriteAsync(Context(httpContext, status, code, detail: null, exception: null));
+    }
+
+    private static ProblemDetailsContext Context(
+        HttpContext httpContext,
+        int status,
+        string code,
+        string? detail,
+        Exception? exception) => new()
+    {
+        HttpContext = httpContext,
+        Exception = exception,
+        ProblemDetails = new ProblemDetails
+        {
+            Status = status,
+            Title = code,
+            Detail = detail,
+            Extensions = { ["code"] = code },
+        },
+    };
 }

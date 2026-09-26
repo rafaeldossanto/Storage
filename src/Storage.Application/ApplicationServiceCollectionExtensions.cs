@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Storage.Application.Accounts;
 using Storage.Application.Catalog;
 
 namespace Storage.Application;
@@ -10,6 +11,8 @@ public static class ApplicationServiceCollectionExtensions
         // Scoped, like the repositories they use: each request serves exactly one shop.
         services.AddScoped<CategoryService>();
         services.AddScoped<ProductService>();
+        services.AddScoped<AuthService>();
+        services.AddScoped<TeamService>();
 
         return services;
     }

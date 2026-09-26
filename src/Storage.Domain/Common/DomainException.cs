@@ -35,4 +35,11 @@ public static class DomainErrors
     public const string PackagingNotFound = "packaging.not_found";
     public const string PackagingFactorInvalid = "packaging.factor_invalid";
     public const string PackagingNameInvalid = "packaging.name_invalid";
+
+    public const string ShopNameInvalid = "shop.name_invalid";
+    public const string ShopTimeZoneInvalid = "shop.time_zone_invalid";
+
+    public const string EmailInvalid = "account.email_invalid";
+    public const string UserNameInvalid = "account.name_invalid";
+    public const string OwnerCannotBeDeactivated = "account.owner_cannot_be_deactivated";
 }

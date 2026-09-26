@@ -1,10 +1,16 @@
 using System.Reflection;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Storage.Api.Auth;
 using Storage.Api.Endpoints;
 using Storage.Api.Errors;
 using Storage.Api.Tenancy;
 using Storage.Application;
 using Storage.Application.Abstractions;
+using Storage.Application.Accounts;
+using Storage.Domain.Accounts;
 using Storage.Infrastructure;
 using Storage.Infrastructure.Persistence;
 
@@ -12,7 +18,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // `dotnet build` runs this file through GetDocument.Insider to write the OpenAPI contract.
 // That run only builds the host to read the endpoints - it never serves a request nor
-// touches the database - so it must not fail for lack of a connection string.
+// touches the database - so it must not fail for lack of a connection string or a key.
 var generatingOpenApiDocument =
     Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
 
@@ -28,20 +34,61 @@ builder.Services.AddStoragePersistence(
 builder.Services.AddStorageApplication();
 builder.Services.AddHttpContextAccessor();
 
-if (builder.Environment.IsDevelopment())
-{
-    // Until login exists, development runs as one fixed shop. This branch is the only
-    // place the fixed tenant can be registered, and it is unreachable outside Development.
-    var developmentTenant = Guid.Parse(
-        builder.Configuration["Storage:DevelopmentTenantId"]
-        ?? throw new InvalidOperationException("Storage:DevelopmentTenantId is not configured."));
+// Every shop-scoped read takes the shop from the signed-in user's token. There is no
+// fallback shop anywhere, in any environment.
+builder.Services.AddScoped<ITenantContext, ClaimsTenantContext>();
 
-    builder.Services.AddScoped<ITenantContext>(_ => new DevelopmentTenantContext(developmentTenant));
-}
-else
+var authSettings = AuthSettings.From(
+    builder.Configuration,
+    allowEphemeralKey: builder.Environment.IsDevelopment() || generatingOpenApiDocument,
+    secureCookies: !builder.Environment.IsDevelopment());
+
+builder.Services.AddSingleton(authSettings);
+builder.Services.AddSingleton(new SessionPolicy(authSettings.RefreshTokenLifetime));
+builder.Services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        // Claims keep the names they were issued with ("tenant_id", "role"), instead of
+        // being renamed to long WS-Federation URIs.
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = JwtAccessTokenIssuer.ValidationParameters(authSettings);
+
+        // The same problem shape as every other refusal, so the front end handles 401 and
+        // 403 the way it handles everything else: by code.
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                await ProblemExceptionHandler.WriteAsync(
+                    context.HttpContext, StatusCodes.Status401Unauthorized, ProblemExceptionHandler.UnauthenticatedCode);
+            },
+            OnForbidden = context => ProblemExceptionHandler.WriteAsync(
+                context.HttpContext, StatusCodes.Status403Forbidden, ProblemExceptionHandler.ForbiddenCode),
+        };
+    });
+
+builder.Services.AddAuthorizationBuilder()
+    // Secure by default: an endpoint someone forgets to protect still requires a signed-in
+    // user. Only routes that opt out with AllowAnonymous are open.
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
+    .AddPolicy(TeamEndpoints.OwnerPolicy, policy => policy.RequireRole(nameof(UserRole.Owner)));
+
+builder.Services.AddRateLimiter(options =>
 {
-    builder.Services.AddScoped<ITenantContext, ClaimsTenantContext>();
-}
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Ten attempts a minute per address on the auth routes: plenty for a person, useless
+    // for a script. Behind a reverse proxy this needs forwarded headers configured, or
+    // every client shares the proxy's address (task 23, deploy).
+    options.AddPolicy(AuthEndpoints.RateLimitPolicy, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
+});
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -61,32 +108,38 @@ builder.Services.AddExceptionHandler<ProblemExceptionHandler>();
 builder.Services.AddOpenApi();
 
 // The front end is a separate application with its own origin. Only the origins listed in
-// configuration may call the API from a browser.
+// configuration may call the API from a browser, and they may send the refresh cookie.
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy => policy
         .WithOrigins(allowedOrigins)
         .AllowAnyHeader()
-        .AllowAnyMethod()));
+        .AllowAnyMethod()
+        .AllowCredentials()));
 
 var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseCors();
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi().AllowAnonymous();
 }
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
+app.MapAuthEndpoints();
+app.MapTeamEndpoints();
 app.MapCategoryEndpoints();
 app.MapProductEndpoints();
 
 // Idempotent: creating an index that already exists is a no-op, so every boot guarantees
-// the unique barcode index and the path index are in place. Skipped while the build writes
-// the OpenAPI contract, which runs this file up to here with no database to talk to.
+// the unique indexes (barcode per shop, e-mail per platform) and the session TTL are in
+// place. Skipped while the build writes the OpenAPI contract, with no database to talk to.
 if (!generatingOpenApiDocument)
 {
     await app.Services.GetRequiredService<MongoStorageContext>().EnsureIndexesAsync();

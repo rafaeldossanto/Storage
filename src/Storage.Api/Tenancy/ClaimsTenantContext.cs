@@ -1,3 +1,4 @@
+using Storage.Api.Auth;
 using Storage.Application.Abstractions;
 
 namespace Storage.Api.Tenancy;
@@ -12,13 +13,11 @@ namespace Storage.Api.Tenancy;
 /// </remarks>
 public sealed class ClaimsTenantContext(IHttpContextAccessor accessor) : ITenantContext
 {
-    public const string TenantClaim = "tenant_id";
-
     public Guid TenantId
     {
         get
         {
-            var value = accessor.HttpContext?.User.FindFirst(TenantClaim)?.Value;
+            var value = accessor.HttpContext?.User.FindFirst(StorageClaims.Tenant)?.Value;
 
             return Guid.TryParse(value, out var tenantId)
                 ? tenantId

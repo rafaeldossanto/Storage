@@ -1,0 +1,9 @@
+[
+  { "name": "Bebidas", "children": ["Águas", "Cervejas", "Energéticos", "Refrigerantes", "Sucos"] },
+  { "name": "Mercearia", "children": ["Enlatados", "Grãos e cereais", "Massas", "Óleos e azeites", "Temperos"] },
+  { "name": "Laticínios e frios", "children": ["Frios", "Iogurtes", "Leites", "Queijos"] },
+  { "name": "Padaria e matinais", "children": ["Achocolatados", "Biscoitos", "Cafés", "Pães"] },
+  { "name": "Doces e salgadinhos", "children": ["Balas", "Chocolates", "Salgadinhos"] },
+  { "name": "Limpeza", "children": ["Desinfetantes", "Lava-louças", "Lava-roupas"] },
+  { "name": "Higiene", "children": ["Bucal", "Cabelos", "Corpo"] }
+]

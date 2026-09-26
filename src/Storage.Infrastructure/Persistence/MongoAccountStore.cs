@@ -1,0 +1,119 @@
+using MongoDB.Driver;
+using Storage.Application.Abstractions;
+using Storage.Application.Errors;
+using Storage.Domain.Accounts;
+using Storage.Domain.Catalog;
+
+namespace Storage.Infrastructure.Persistence;
+
+/// <summary>
+/// Unscoped account data for the sign-up, sign-in and refresh flows. See
+/// <see cref="IAccountStore"/> for why this is the one place allowed to read across shops.
+/// </summary>
+public sealed class MongoAccountStore(MongoStorageContext context, TimeProvider clock) : IAccountStore
+{
+    private const string EmailTaken = "This e-mail already has an account.";
+
+    public async Task<bool> EmailInUseAsync(EmailAddress email, CancellationToken cancellationToken = default) =>
+        await context.Users.Find(ByEmail(email)).AnyAsync(cancellationToken);
+
+    public async Task<User?> FindUserByEmailAsync(EmailAddress email, CancellationToken cancellationToken = default) =>
+        await context.Users.Find(ByEmail(email)).FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<User?> FindUserAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        await context.Users
+            .Find(Builders<User>.Filter.Eq(user => user.Id, userId))
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<Tenant?> FindTenantAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
+        await context.Tenants
+            .Find(Builders<Tenant>.Filter.Eq(tenant => tenant.Id, tenantId))
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task ProvisionAsync(
+        Tenant tenant,
+        User owner,
+        IReadOnlyCollection<Category> categories,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tenant);
+        ArgumentNullException.ThrowIfNull(owner);
+        ArgumentNullException.ThrowIfNull(categories);
+
+        var now = clock.GetUtcNow();
+        tenant.MarkCreated(now);
+        owner.MarkCreated(now);
+
+        // Owner first: the unique e-mail index decides a race between two sign-ups, and the
+        // loser must fail before anything of theirs is written. Without a transaction a
+        // crash between the steps can still leave a shop with no categories - harmless, it
+        // just starts empty. Multi-document transactions arrive with stock (task 15).
+        await DuplicateKey.GuardAsync(
+            () => context.Users.InsertOneAsync(owner, options: null, cancellationToken),
+            ErrorCodes.EmailTaken,
+            EmailTaken);
+
+        await context.Tenants.InsertOneAsync(tenant, options: null, cancellationToken);
+
+        if (categories.Count > 0)
+        {
+            await context.Categories.InsertManyAsync(categories, options: null, cancellationToken);
+        }
+    }
+
+    public async Task UpdateUserAsync(User user, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        user.MarkUpdated(clock.GetUtcNow());
+
+        await context.Users.ReplaceOneAsync(
+            Builders<User>.Filter.Eq(stored => stored.Id, user.Id),
+            user,
+            new ReplaceOptions(),
+            cancellationToken);
+    }
+
+    public async Task<Session?> FindSessionByTokenHashAsync(
+        string tokenHash,
+        CancellationToken cancellationToken = default) =>
+        await context.Sessions
+            .Find(Builders<Session>.Filter.Eq(session => session.TokenHash, tokenHash))
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task AddSessionAsync(Session session, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        await context.Sessions.InsertOneAsync(session, options: null, cancellationToken);
+    }
+
+    public async Task UpdateSessionAsync(Session session, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        await context.Sessions.ReplaceOneAsync(
+            Builders<Session>.Filter.Eq(stored => stored.Id, session.Id),
+            session,
+            new ReplaceOptions(),
+            cancellationToken);
+    }
+
+    public async Task RevokeAllSessionsAsync(
+        Guid userId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        var stillOpen = Builders<Session>.Filter.And(
+            Builders<Session>.Filter.Eq(session => session.UserId, userId),
+            Builders<Session>.Filter.Eq(session => session.RevokedAt, null));
+
+        await context.Sessions.UpdateManyAsync(
+            stillOpen,
+            Builders<Session>.Update.Set(session => session.RevokedAt, now),
+            new UpdateOptions(),
+            cancellationToken);
+    }
+
+    private static FilterDefinition<User> ByEmail(EmailAddress email) =>
+        Builders<User>.Filter.Eq(user => user.Email, email);
+}

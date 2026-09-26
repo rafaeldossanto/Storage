@@ -1,5 +1,6 @@
 using MongoDB.Bson;
 using MongoDB.Driver;
+using Storage.Domain.Accounts;
 using Storage.Domain.Catalog;
 
 namespace Storage.Infrastructure.Persistence;
@@ -11,6 +12,9 @@ public sealed class MongoStorageContext
 {
     public const string CategoriesCollection = "categories";
     public const string ProductsCollection = "products";
+    public const string TenantsCollection = "tenants";
+    public const string UsersCollection = "users";
+    public const string SessionsCollection = "sessions";
 
     /// <summary>
     /// Packagings live inside the product document, so the barcode index reaches into the
@@ -39,6 +43,12 @@ public sealed class MongoStorageContext
 
     public IMongoCollection<Product> Products =>
         Database.GetCollection<Product>(ProductsCollection);
+
+    public IMongoCollection<Tenant> Tenants => Database.GetCollection<Tenant>(TenantsCollection);
+
+    public IMongoCollection<User> Users => Database.GetCollection<User>(UsersCollection);
+
+    public IMongoCollection<Session> Sessions => Database.GetCollection<Session>(SessionsCollection);
 
     /// <summary>
     /// Creates the indexes the application depends on.
@@ -85,6 +95,37 @@ public sealed class MongoStorageContext
                     Builders<Product>.IndexKeys
                         .Ascending(product => product.TenantId)
                         .Ascending(product => product.Name)),
+            ],
+            cancellationToken);
+
+        await Users.Indexes.CreateManyAsync(
+            [
+                // The e-mail is the login, typed before the shop is known: unique across the
+                // whole platform, not per shop. Also settles two sign-ups racing for it.
+                new CreateIndexModel<User>(
+                    Builders<User>.IndexKeys.Ascending(user => user.Email),
+                    new CreateIndexOptions { Unique = true }),
+
+                new CreateIndexModel<User>(
+                    Builders<User>.IndexKeys.Ascending(user => user.TenantId)),
+            ],
+            cancellationToken);
+
+        await Sessions.Indexes.CreateManyAsync(
+            [
+                new CreateIndexModel<Session>(
+                    Builders<Session>.IndexKeys.Ascending(session => session.TokenHash),
+                    new CreateIndexOptions { Unique = true }),
+
+                new CreateIndexModel<Session>(
+                    Builders<Session>.IndexKeys.Ascending(session => session.UserId)),
+
+                // TTL: MongoDB deletes a session once its expiry passes. Unlike an expired
+                // batch - a business fact that becomes a recorded loss - an expired session
+                // is plumbing, and keeping it would only grow the collection.
+                new CreateIndexModel<Session>(
+                    Builders<Session>.IndexKeys.Ascending(session => session.ExpiresAt),
+                    new CreateIndexOptions { ExpireAfter = TimeSpan.Zero }),
             ],
             cancellationToken);
     }

@@ -31,9 +31,32 @@ Depois:
 dotnet run --project src/Storage.Api
 ```
 
-Em desenvolvimento a API roda como uma loja fixa (`Storage:DevelopmentTenantId` em
-`appsettings.Development.json`) até o login existir. Esse atalho só é registrado no
-ambiente Development.
+Para usar, crie uma loja com `POST /api/auth/sign-up` — ela já vem com uma árvore de
+categorias de mercado — e use o token devolvido nas demais chamadas.
+
+**Chave de assinatura dos tokens.** Em desenvolvimento, se `Auth:SigningKey` não estiver
+configurada, a API gera uma aleatória ao subir: as sessões não sobrevivem a um restart, o
+que é aceitável na máquina de quem desenvolve. Em qualquer outro ambiente a API **se
+recusa a subir** sem ela. A chave tem no mínimo 32 bytes em base64 e vem sempre do
+ambiente (`Auth__SigningKey`), nunca de um arquivo versionado.
+
+## Autenticação
+
+- **Token de acesso** (JWT, 15 minutos) no corpo da resposta. O front guarda em memória e
+  manda em `Authorization: Bearer`. Carrega a pessoa, a loja e o papel.
+- **Token de renovação** (30 dias sem uso) só num cookie `HttpOnly`, `SameSite=Strict`,
+  restrito a `/api/auth` — nenhum script da página consegue ler. Só o hash dele é guardado.
+  Cada renovação troca o token; um token já usado que reaparece encerra **todas** as
+  sessões daquela pessoa, porque alguém guardou uma cópia.
+- **Senha** com o hasher do ASP.NET Core Identity (PBKDF2, HMAC-SHA512). Hash antigo é
+  atualizado no próximo login certo. Mínimo de 8 caracteres, sem regra de composição.
+- **Tentativa de adivinhar senha:** 5 erros seguidos bloqueiam a conta por 15 minutos, e
+  as rotas de autenticação aceitam 10 requisições por minuto por endereço. E-mail
+  inexistente responde igual e no mesmo tempo que senha errada, para não revelar quem tem
+  conta.
+- **Seguro por padrão:** toda rota exige login; só cadastro, login, renovação, saída,
+  `/health` e o contrato ficam abertos. Mexer na equipe é só para o dono.
+- E-mail é o login, então é **único na plataforma inteira**, não por loja.
 
 ## Estrutura
 
@@ -86,6 +109,6 @@ em `StorageBsonSerialization`.
 
 ## Estado
 
-Catálogo completo no backend: categorias em árvore e produtos com embalagens, expostos em
-`/api/categories` e `/api/products`, com os dados de cada loja isolados. Faltam o login,
-os testes contra um MongoDB de verdade e o front.
+Catálogo e contas prontos no backend: cadastro de loja, login, renovação de sessão, equipe
+com papéis, categorias e produtos, com os dados de cada loja isolados. Faltam os testes
+contra um MongoDB de verdade, estoque, descontos, validade e o front.

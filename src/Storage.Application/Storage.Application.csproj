@@ -1,11 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The starter category tree a new shop gets: content, not code, so it is data.
+         WithCulture="false": the ".pt-BR" in the name would otherwise make MSBuild treat it as
+         a culture resource and move it into a satellite assembly, out of reach of this one. -->
+    <EmbeddedResource Include="Accounts\default-categories.pt-BR.json" LogicalName="default-categories.pt-BR.json" WithCulture="false" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Storage.Domain\Storage.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <InternalsVisibleTo Include="Storage.Application.Tests" />
   </ItemGroup>
 
 </Project>
