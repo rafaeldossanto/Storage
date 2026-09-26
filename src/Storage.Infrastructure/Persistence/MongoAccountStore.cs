@@ -44,21 +44,25 @@ public sealed class MongoAccountStore(MongoStorageContext context, TimeProvider 
         tenant.MarkCreated(now);
         owner.MarkCreated(now);
 
-        // Owner first: the unique e-mail index decides a race between two sign-ups, and the
-        // loser must fail before anything of theirs is written. Without a transaction a
-        // crash between the steps can still leave a shop with no categories - harmless, it
-        // just starts empty. Multi-document transactions arrive with stock (task 15).
+        // One transaction: a shop exists with its owner and its starting categories, or not at
+        // all - a crash halfway can no longer leave a shop behind without categories. The
+        // owner still goes first, so the unique e-mail index settles a race between two
+        // sign-ups before anything else is attempted.
         await DuplicateKey.GuardAsync(
-            () => context.Users.InsertOneAsync(owner, options: null, cancellationToken),
+            () => context.InTransactionAsync(
+                async (session, token) =>
+                {
+                    await context.Users.InsertOneAsync(session, owner, cancellationToken: token);
+                    await context.Tenants.InsertOneAsync(session, tenant, cancellationToken: token);
+
+                    if (categories.Count > 0)
+                    {
+                        await context.Categories.InsertManyAsync(session, categories, cancellationToken: token);
+                    }
+                },
+                cancellationToken),
             ErrorCodes.EmailTaken,
             EmailTaken);
-
-        await context.Tenants.InsertOneAsync(tenant, options: null, cancellationToken);
-
-        if (categories.Count > 0)
-        {
-            await context.Categories.InsertManyAsync(categories, options: null, cancellationToken);
-        }
     }
 
     public async Task UpdateUserAsync(User user, CancellationToken cancellationToken = default)

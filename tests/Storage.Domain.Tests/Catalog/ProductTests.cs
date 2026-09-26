@@ -121,21 +121,12 @@ public class ProductTests
     }
 
     [Fact]
-    public void A_negative_average_cost_is_refused()
-    {
-        var product = NewProduct();
-
-        DomainAssert.Breaks(DomainErrors.ProductCostNegative, () => product.UpdateAverageCost(Money.FromCents(-1)));
-    }
-
-    [Fact]
     public void A_product_starts_tracking_expiry_and_active()
     {
         var product = NewProduct();
 
         Assert.True(product.TracksExpiry);
         Assert.True(product.Active);
-        Assert.Equal(Money.Zero, product.AverageCost);
     }
 
     [Fact]

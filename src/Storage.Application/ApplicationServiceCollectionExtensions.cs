@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Storage.Application.Accounts;
 using Storage.Application.Catalog;
+using Storage.Application.Stock;
 
 namespace Storage.Application;
 
@@ -13,6 +14,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<ProductService>();
         services.AddScoped<AuthService>();
         services.AddScoped<TeamService>();
+        services.AddScoped<StockService>();
 
         return services;
     }

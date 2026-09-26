@@ -17,7 +17,6 @@ internal static class CatalogMappings
         product.CategoryId,
         product.BaseUnit,
         product.SalePrice.Cents,
-        product.AverageCost.Cents,
         product.MinimumStock,
         product.TracksExpiry,
         product.Active,

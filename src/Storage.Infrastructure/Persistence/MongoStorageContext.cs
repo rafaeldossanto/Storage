@@ -2,6 +2,7 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using Storage.Domain.Accounts;
 using Storage.Domain.Catalog;
+using Storage.Domain.Stock;
 
 namespace Storage.Infrastructure.Persistence;
 
@@ -15,6 +16,8 @@ public sealed class MongoStorageContext
     public const string TenantsCollection = "tenants";
     public const string UsersCollection = "users";
     public const string SessionsCollection = "sessions";
+    public const string BatchesCollection = "batches";
+    public const string StockMovementsCollection = "stockMovements";
 
     /// <summary>
     /// Packagings live inside the product document, so the barcode index reaches into the
@@ -49,6 +52,11 @@ public sealed class MongoStorageContext
     public IMongoCollection<User> Users => Database.GetCollection<User>(UsersCollection);
 
     public IMongoCollection<Session> Sessions => Database.GetCollection<Session>(SessionsCollection);
+
+    public IMongoCollection<Batch> Batches => Database.GetCollection<Batch>(BatchesCollection);
+
+    public IMongoCollection<StockMovement> StockMovements =>
+        Database.GetCollection<StockMovement>(StockMovementsCollection);
 
     /// <summary>
     /// Creates the indexes the application depends on.
@@ -128,5 +136,65 @@ public sealed class MongoStorageContext
                     new CreateIndexOptions { ExpireAfter = TimeSpan.Zero }),
             ],
             cancellationToken);
+
+        await Batches.Indexes.CreateManyAsync(
+            [
+                // A product's batches: the balance, FEFO, the stock screen.
+                new CreateIndexModel<Batch>(
+                    Builders<Batch>.IndexKeys
+                        .Ascending(batch => batch.TenantId)
+                        .Ascending(batch => batch.ProductId)
+                        .Ascending(batch => batch.Status)),
+
+                // What expires when: the daily expiry job and the expiry dashboard.
+                new CreateIndexModel<Batch>(
+                    Builders<Batch>.IndexKeys
+                        .Ascending(batch => batch.TenantId)
+                        .Ascending(batch => batch.Status)
+                        .Ascending(batch => batch.ExpiryDate)),
+            ],
+            cancellationToken);
+
+        await StockMovements.Indexes.CreateManyAsync(
+            [
+                // A product's history, newest first.
+                new CreateIndexModel<StockMovement>(
+                    Builders<StockMovement>.IndexKeys
+                        .Ascending(movement => movement.TenantId)
+                        .Ascending(movement => movement.ProductId)
+                        .Descending(movement => movement.OccurredAt)),
+
+                // Losses by type and period: the loss report.
+                new CreateIndexModel<StockMovement>(
+                    Builders<StockMovement>.IndexKeys
+                        .Ascending(movement => movement.TenantId)
+                        .Ascending(movement => movement.Type)
+                        .Ascending(movement => movement.OccurredAt)),
+            ],
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Runs <paramref name="work"/> inside a multi-document transaction: every write it makes
+    /// lands, or none does. Needs a replica set - which is why the project requires one.
+    /// </summary>
+    /// <remarks>
+    /// The driver retries the whole callback on transient errors (two transactions touching
+    /// the same document), so <paramref name="work"/> must only write what it was given,
+    /// never compute from reads outside the session.
+    /// </remarks>
+    public async Task InTransactionAsync(
+        Func<IClientSessionHandle, CancellationToken, Task> work,
+        CancellationToken cancellationToken)
+    {
+        using var session = await Client.StartSessionAsync(cancellationToken: cancellationToken);
+
+        await session.WithTransactionAsync(
+            async (transaction, token) =>
+            {
+                await work(transaction, token);
+                return true;
+            },
+            cancellationToken: cancellationToken);
     }
 }

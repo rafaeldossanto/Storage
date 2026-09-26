@@ -41,7 +41,6 @@ public sealed record ProductDto(
     Guid CategoryId,
     UnitOfMeasure BaseUnit,
     long SalePriceCents,
-    long AverageCostCents,
     int MinimumStock,
     bool TracksExpiry,
     bool Active,

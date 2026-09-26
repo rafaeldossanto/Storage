@@ -34,7 +34,6 @@ public sealed class Product : ITimestamped, ITenantScoped
         CategoryId = categoryId;
         BaseUnit = baseUnit;
         SalePrice = Positive(salePrice);
-        AverageCost = Money.Zero;
         MinimumStock = 0;
         TracksExpiry = true;
         Active = true;
@@ -53,13 +52,10 @@ public sealed class Product : ITimestamped, ITenantScoped
 
     public UnitOfMeasure BaseUnit { get; private set; }
 
+    // No average cost here on purpose: it is derived from the batches in stock, like the
+    // balance. Stored on the product, two goods receipts at once - or a receipt and a price
+    // change - would each rewrite it from a stale read, and one of them would be lost.
     public Money SalePrice { get; private set; }
-
-    /// <summary>
-    /// Weighted average of what was paid for the units currently in stock. Written by
-    /// goods receiving, never typed by hand, and what the margin report is measured against.
-    /// </summary>
-    public Money AverageCost { get; private set; }
 
     public int MinimumStock { get; private set; }
 
@@ -153,17 +149,6 @@ public sealed class Product : ITimestamped, ITenantScoped
     }
 
     public void SetExpiryTracking(bool tracksExpiry) => TracksExpiry = tracksExpiry;
-
-    /// <summary>Called by goods receiving once the new weighted average is known.</summary>
-    public void UpdateAverageCost(Money averageCost)
-    {
-        if (averageCost.IsNegative)
-        {
-            throw new DomainException(DomainErrors.ProductCostNegative, "Cost cannot be negative.");
-        }
-
-        AverageCost = averageCost;
-    }
 
     /// <summary>Stamped by the repository from the injected clock, never read from the entity.</summary>
     public void MarkCreated(DateTimeOffset at)

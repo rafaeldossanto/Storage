@@ -36,7 +36,9 @@ builder.Services.AddHttpContextAccessor();
 
 // Every shop-scoped read takes the shop from the signed-in user's token. There is no
 // fallback shop anywhere, in any environment.
-builder.Services.AddScoped<ITenantContext, ClaimsTenantContext>();
+builder.Services.AddScoped<ClaimsTenantContext>();
+builder.Services.AddScoped<ITenantContext>(provider => provider.GetRequiredService<ClaimsTenantContext>());
+builder.Services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<ClaimsTenantContext>());
 
 var authSettings = AuthSettings.From(
     builder.Configuration,
@@ -136,6 +138,7 @@ app.MapAuthEndpoints();
 app.MapTeamEndpoints();
 app.MapCategoryEndpoints();
 app.MapProductEndpoints();
+app.MapStockEndpoints();
 
 // Idempotent: creating an index that already exists is a no-op, so every boot guarantees
 // the unique indexes (barcode per shop, e-mail per platform) and the session TTL are in

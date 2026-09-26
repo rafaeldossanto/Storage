@@ -26,7 +26,6 @@ public static class DomainErrors
 
     public const string ProductNameInvalid = "product.name_invalid";
     public const string ProductPriceNegative = "product.price_negative";
-    public const string ProductCostNegative = "product.cost_negative";
     public const string ProductMinimumStockNegative = "product.minimum_stock_negative";
     public const string ProductBarcodeRepeated = "product.barcode_repeated";
     public const string ProductBarcodeNotOnProduct = "product.barcode_not_on_product";
@@ -35,6 +34,10 @@ public static class DomainErrors
     public const string PackagingNotFound = "packaging.not_found";
     public const string PackagingFactorInvalid = "packaging.factor_invalid";
     public const string PackagingNameInvalid = "packaging.name_invalid";
+
+    public const string BatchQuantityInvalid = "batch.quantity_invalid";
+    public const string BatchCostNegative = "batch.cost_negative";
+    public const string StockInsufficient = "stock.insufficient";
 
     public const string ShopNameInvalid = "shop.name_invalid";
     public const string ShopTimeZoneInvalid = "shop.time_zone_invalid";

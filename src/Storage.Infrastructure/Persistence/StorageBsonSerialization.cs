@@ -4,6 +4,7 @@ using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Bson.Serialization.Serializers;
 using Storage.Domain.Accounts;
 using Storage.Domain.Catalog;
+using Storage.Domain.Stock;
 using Storage.Domain.ValueObjects;
 
 namespace Storage.Infrastructure.Persistence;
@@ -56,10 +57,28 @@ public static class StorageBsonSerialization
             RegisterTenant();
             RegisterUser();
             RegisterSession();
+            RegisterBatch();
+            RegisterStockMovement();
 
             _registered = true;
         }
     }
+
+    private static void RegisterBatch() =>
+        BsonClassMap.TryRegisterClassMap<Batch>(map =>
+        {
+            map.AutoMap();
+            map.MapIdProperty(batch => batch.Id);
+            map.SetIgnoreExtraElements(true);
+        });
+
+    private static void RegisterStockMovement() =>
+        BsonClassMap.TryRegisterClassMap<StockMovement>(map =>
+        {
+            map.AutoMap();
+            map.MapIdProperty(movement => movement.Id);
+            map.SetIgnoreExtraElements(true);
+        });
 
     private static void RegisterTenant() =>
         BsonClassMap.TryRegisterClassMap<Tenant>(map =>

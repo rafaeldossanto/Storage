@@ -731,6 +731,46 @@
           }
         }
       }
+    },
+    "/api/stock/products/{productId}/removals": {
+      "post": {
+        "tags": [
+          "Stock"
+        ],
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveStockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockLevelDto"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1017,7 +1057,6 @@
           "categoryId",
           "baseUnit",
           "salePriceCents",
-          "averageCostCents",
           "minimumStock",
           "tracksExpiry",
           "active",
@@ -1045,10 +1084,6 @@
             "type": "integer",
             "format": "int64"
           },
-          "averageCostCents": {
-            "type": "integer",
-            "format": "int64"
-          },
           "minimumStock": {
             "type": "integer",
             "format": "int32"
@@ -1072,6 +1107,28 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "RemoveStockRequest": {
+        "required": [
+          "quantity",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/StockRemovalReason"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -1129,6 +1186,47 @@
             ]
           }
         }
+      },
+      "StockLevelDto": {
+        "required": [
+          "productId",
+          "quantity",
+          "stockValueCents",
+          "averageCostCents",
+          "nextExpiry"
+        ],
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stockValueCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "averageCostCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nextExpiry": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          }
+        }
+      },
+      "StockRemovalReason": {
+        "enum": [
+          "Damage",
+          "ReturnToSupplier"
+        ]
       },
       "TeamMemberDto": {
         "required": [
@@ -1223,6 +1321,9 @@
     },
     {
       "name": "Products"
+    },
+    {
+      "name": "Stock"
     }
   ]
 }

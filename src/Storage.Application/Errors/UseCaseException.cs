@@ -60,6 +60,15 @@ public static class ErrorCodes
     public const string BarcodeInvalid = "barcode.invalid";
     public const string BarcodeTaken = "barcode.taken";
 
+    /// <summary>
+    /// Someone else changed the same stock in the meantime. Nothing was written; the screen
+    /// reloads and the person tries again with current numbers.
+    /// </summary>
+    public const string StockChangedConcurrently = "stock.changed_concurrently";
+
+    public const string StockQuantityInvalid = "stock.quantity_invalid";
+    public const string StockNoteTooLong = "stock.note_too_long";
+
     public const string EmailTaken = "account.email_taken";
     public const string PasswordInvalid = "account.password_invalid";
     public const string UserNotFound = "account.not_found";
