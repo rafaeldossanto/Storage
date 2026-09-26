@@ -17,8 +17,8 @@ Este repositório é o **backend**. O front-end (React) vive em
 ## Como rodar
 
 Precisa de um MongoDB **em replica set** — transações multi-documento não funcionam num
-`mongod` standalone, e a entrada de mercadoria grava lote, movimento e custo médio
-juntos. Com Docker:
+`mongod` standalone, e cada mudança de estoque grava lotes, movimentos e o documento que
+a causou (entrada, contagem) juntos. Com Docker:
 
 ```bash
 docker run -d --name storage-mongo -p 27017:27017 mongo:8.0 --replSet rs0 --bind_ip_all
@@ -59,11 +59,14 @@ ambiente (`Auth__SigningKey`), nunca de um arquivo versionado.
 - **Token de renovação** (30 dias sem uso) só num cookie `HttpOnly`, `SameSite=Strict`,
   restrito a `/api/auth` — nenhum script da página consegue ler. Só o hash dele é guardado.
   Cada renovação troca o token; um token já usado que reaparece encerra **todas** as
-  sessões daquela pessoa, porque alguém guardou uma cópia.
+  sessões daquela pessoa, porque alguém guardou uma cópia. A troca é um compare-and-set no
+  banco: de duas renovações simultâneas com o mesmo token só uma vence, e a outra conta
+  como reuso. Por isso o front nunca renova duas vezes ao mesmo tempo, nem entre abas.
 - **Senha** com o hasher do ASP.NET Core Identity (PBKDF2, HMAC-SHA512). Hash antigo é
   atualizado no próximo login certo. Mínimo de 8 caracteres, sem regra de composição.
 - **Tentativa de adivinhar senha:** 5 erros seguidos bloqueiam a conta por 15 minutos, e
-  as rotas de autenticação aceitam 10 requisições por minuto por endereço. E-mail
+  as rotas de autenticação aceitam 10 requisições por minuto por endereço (acima disso,
+  429 `auth.too_many_requests` com `Retry-After`). E-mail
   inexistente responde igual e no mesmo tempo que senha errada, para não revelar quem tem
   conta.
 - **Seguro por padrão:** toda rota exige login; só cadastro, login, renovação, saída,
@@ -99,8 +102,12 @@ from zero*: meio centavo sobe, como numa etiqueta de preço.
 **Código de barras** é gravado na forma normalizada de 14 dígitos, com índice único **por
 loja** — duas lojas vendem a mesma lata, com o mesmo código GS1.
 
-**Estoque será um ledger.** Movimentos append-only: nunca atualizar, nunca apagar. Lote
+**Estoque é um ledger.** Movimentos append-only: nunca atualizar, nunca apagar. Lote
 vencido não é apagado — vira perda registrada, que é o que alimenta o relatório de perdas.
+Saldo e custo médio **não são gravados no produto**: saem dos lotes, então duas entradas
+simultâneas não têm um total para sobrescrever. Um lote só muda por compare-and-set
+(quantidade e situação esperadas); quem perde a disputa recebe 409
+`stock.changed_concurrently` e nada é gravado.
 
 **Mapeamento fora do domínio.** Nenhum atributo BSON chega às entidades; o mapeamento vive
 em `StorageBsonSerialization`.
@@ -112,15 +119,34 @@ em `StorageBsonSerialization`.
 - **Enums pelo nome** (`"baseUnit": "Unit"`), a mesma regra do banco.
 - **Erros com código estável.** Toda recusa volta como problem details com `code`
   (`barcode.taken`, `category.move_into_own_branch`...). O front traduz o `code` para
-  português; o `detail` é texto técnico em inglês e não deve ir para a tela. Qualquer outra
-  falha é bug e volta como 500 sem mensagem.
+  português; o `detail` é texto técnico em inglês e não deve ir para a tela. Corpo que não
+  é JSON válido volta 400 `request.malformed`. Qualquer outra falha é bug e volta como 500
+  sem mensagem.
 - **404 no código de barras é caminho normal**: `GET /api/products/by-barcode/{codigo}`
   sem produto é a deixa para a tela abrir o cadastro já preenchido.
-- **OpenAPI** em `/openapi/v1.json` no ambiente de desenvolvimento — é de onde o front gera
-  o cliente tipado.
+- **OpenAPI** gerado a cada build em `openapi/storage-api.json`, versionado — é ali que o
+  front confere o formato de uma rota antes de usá-la. Em desenvolvimento também sai em
+  `/openapi/v1.json`.
+
+## O que a API faz
+
+| Área | Rotas | Resumo |
+| --- | --- | --- |
+| Contas | `/api/auth/*`, `/api/me`, `/api/team` | Cadastro de loja (já com árvore de categorias de mercado), login, renovação, equipe dono/funcionário |
+| Catálogo | `/api/categories`, `/api/products` | Árvore de categorias, produtos com embalagens (fardo de 12 conta 12 unidades), busca por código e nome |
+| Entrada | `/api/receipts`, `/api/suppliers` | Nota bipada linha a linha, com custo e validade; cada linha vira um lote |
+| Estoque | `/api/stock/*` | Saldo por produto e por ramo, abaixo do mínimo, lotes na ordem de saída (FEFO), avaria e devolução |
+| Validade | job + `/api/stock/expiring` | A cada 6 h, no fuso de cada loja, lote vencido vira perda com o custo. Painel de 3, 7, 15 e 30 dias com o valor em risco |
+| Descontos | `/api/discounts`, `/api/products/{id}/price` | Regra por produto ou por ramo (Bebidas alcança Energéticos), prioridade, teto de cascata, janela "vence em N dias", prévia de alcance |
+| Contagem | `/api/counts` | Vários celulares contando ao mesmo tempo; o fechamento ajusta o estoque com justificativa obrigatória |
+| Relatórios | `/api/reports/losses` | Perdas do período por categoria, em reais |
+
+Só o dono mexe na equipe, fecha ou cancela contagem e dispara a varredura de validade à
+mão.
 
 ## Estado
 
-Catálogo e contas prontos no backend: cadastro de loja, login, renovação de sessão, equipe
-com papéis, categorias e produtos, com os dados de cada loja isolados. Faltam os testes
-contra um MongoDB de verdade, estoque, descontos, validade e o front.
+Backend do MVP pronto: tudo da tabela acima, com testes de domínio, de casos de uso e de
+integração contra um MongoDB de verdade. Faltam as telas (esperam a escolha da biblioteca
+visual, no [StorageFront](https://github.com/rafaeldossanto/StorageFront)), deploy com
+HTTPS e monitoramento, backup com restauração ensaiada, e termos de uso e privacidade.
