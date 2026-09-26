@@ -1,5 +1,6 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Bson.Serialization.Serializers;
 using Storage.Domain.Catalog;
 using Storage.Domain.ValueObjects;
@@ -27,6 +28,14 @@ public static class StorageBsonSerialization
             {
                 return;
             }
+
+            // Enums by name, not by ordinal: a document read in five years should say
+            // "ExpiryLoss", not 2, and reordering an enum must never rewrite history. A
+            // convention only affects class maps built after it, so it goes first.
+            ConventionRegistry.Register(
+                "storage-domain",
+                new ConventionPack { new EnumRepresentationConvention(BsonType.String) },
+                type => type.Namespace?.StartsWith("Storage.Domain", StringComparison.Ordinal) == true);
 
             // Standard UUID binary (subtype 4), the only representation that is portable
             // across drivers - the legacy subtype 3 byte order differs per language.

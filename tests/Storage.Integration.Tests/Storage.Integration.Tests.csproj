@@ -3,10 +3,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
-    <!-- TEMPORARY: the SQLite integration tests were removed with the move to MongoDB, and
-         the Mongo ones need a replica set to run against. Until they land, an empty run
-         (exit code 8) must not fail `dotnet test`. Remove this line with the first test. -->
-    <TestingPlatformCommandLineArguments>--ignore-exit-code 8</TestingPlatformCommandLineArguments>
   </PropertyGroup>
 
   <ItemGroup>

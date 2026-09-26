@@ -10,7 +10,10 @@ public sealed class Product : ITimestamped, ITenantScoped
 {
     public const int NameMaxLength = 120;
 
-    private readonly List<PackagingUnit> _packagings = [];
+    // Not readonly on purpose: the MongoDB driver fills this field when reading a product,
+    // and it silently skips readonly fields - every product would come back with no
+    // barcodes. BsonMappingTests guards the round trip.
+    private List<PackagingUnit> _packagings = [];
 
     private Product()
     {
