@@ -1,62 +1,77 @@
 # Storage
 
-Controle de estoque com leitura de código de barras e frente de caixa para mercado de
-bairro. Roda no PC que a loja já tem, num processo só, e **continua vendendo com a
-internet fora**.
+Controle de estoque para mercado de bairro, vendido como serviço: o lojista abre no
+navegador, sem instalar nada. Cadastro por código de barras, categorias em árvore,
+descontos por subgrupo, validade e relatório de perdas.
+
+Este repositório é o **backend**. O front-end (React) vive em
+[StorageFront](https://github.com/rafaeldossanto/StorageFront).
 
 - **Runtime:** .NET 10 (LTS, suporte até 14/11/2028)
-- **Interface:** Blazor Server, aberta no navegador em `localhost`
-- **Dados:** SQLite local — um arquivo, zero servidor para instalar
-- **Leitura:** leitor USB (HID, se comporta como teclado) e câmera do celular na mesma rede
-
-Plano completo do projeto: https://claude.ai/artifact/BRcVLePSwNgW8ro6ZEQhUa
+- **API:** ASP.NET Core, JSON
+- **Dados:** MongoDB, multi-loja por `TenantId`
+- **Escopo da v1:** gestão de estoque. Frente de caixa (PDV) fica para depois — um caixa
+  que depende de internet para vender não é aceitável, e a versão offline é um projeto à
+  parte.
 
 ## Como rodar
 
+Precisa de um MongoDB **em replica set** — transações multi-documento não funcionam num
+`mongod` standalone, e a entrada de mercadoria grava lote, movimento e custo médio
+juntos. Com Docker:
+
 ```bash
-dotnet run --project src/Storage.Web
+docker run -d --name storage-mongo -p 27017:27017 mongo:8 --replSet rs0
+docker exec storage-mongo mongosh --quiet --eval "rs.initiate()"
 ```
 
-Em desenvolvimento o banco é criado em `src/Storage.Web/.data/storage.db` (configurável por
-`Storage:DataDirectory`). Em produção fica em `%ProgramData%\Storage`, porque o app roda como
-serviço da máquina e não como dado de um usuário.
+Depois:
+
+```bash
+dotnet run --project src/Storage.Api
+```
+
+Em desenvolvimento a API roda como uma loja fixa (`Storage:DevelopmentTenantId` em
+`appsettings.Development.json`) até o login existir. Esse atalho só é registrado no
+ambiente Development.
 
 ## Estrutura
 
 | Projeto | Papel |
 | --- | --- |
 | `Storage.Domain` | Entidades, value objects e regras puras. **Sem dependência nenhuma.** |
-| `Storage.Application` | Casos de uso e interfaces de repositório |
-| `Storage.Infrastructure` | EF Core, SQLite, migrations, jobs |
-| `Storage.Web` | Blazor Server, Kestrel, composição |
+| `Storage.Application` | Casos de uso e as interfaces que a infraestrutura implementa |
+| `Storage.Infrastructure` | MongoDB: mapeamento, índices, repositórios |
+| `Storage.Api` | Endpoints HTTP, CORS, resolução da loja por requisição |
 
-As duas regras que decidem dinheiro do lojista — resolução de desconto e consumo FEFO —
-ficam no `Domain`, puras e testáveis sem banco.
+O domínio não sabe onde os dados moram. Foi isso que permitiu trocar SQLite por MongoDB
+sem alterar uma linha de `Storage.Domain` além da noção de loja.
 
 ## Convenções
 
-**Idioma.** Identificadores, tabelas, colunas, enums, branches e mensagens de commit em
-inglês. Tudo que o lojista lê vem de `Resources/UiText.resx` via `IStringLocalizer`, com a
-cultura fixada em `pt-BR` no `Program.cs`. Nenhum texto de tela escrito direto no
-componente.
+**Idioma.** Identificadores, coleções, campos, enums, branches e mensagens de commit em
+inglês. Todo texto que o lojista lê é responsabilidade do front-end, em português.
 
-**Dinheiro nunca é `decimal`.** SQLite guardaria como TEXT (que ordena "9,90" depois de
-"10,00") ou REAL (que não representa 0,10 exatamente). Todo valor é `Money`, um `long` de
-centavos em coluna INTEGER. Arredondamento é *half away from zero*: meio centavo sobe,
-como numa etiqueta de preço.
+**Isolamento entre lojas.** Todo documento carrega `TenantId`. Os repositórios leem a loja
+de `ITenantContext` — nunca de um parâmetro — e aplicam o filtro em toda consulta; uma
+escrita de documento de outra loja é recusada. Não existe loja padrão: requisição sem loja
+falha.
 
-**Estoque é um ledger.** `StockMovement` é append-only: nunca `UPDATE`, nunca `DELETE`.
-Estorno é movimento contrário. Lote vencido não é apagado — vira status `EXPIRED` e um
-movimento `EXPIRY_LOSS`, que é o que alimenta o relatório de perdas.
+**Dinheiro nunca é `decimal` nem `double`.** Todo valor é `Money`, um `long` de centavos
+gravado como Int64. `double` não representa 0,10 exatamente. Arredondamento é *half away
+from zero*: meio centavo sobe, como numa etiqueta de preço.
 
-**Saldo é derivado** dos lotes disponíveis, nunca denormalizado.
+**Código de barras** é gravado na forma normalizada de 14 dígitos, com índice único **por
+loja** — duas lojas vendem a mesma lata, com o mesmo código GS1.
 
-**Banco.** WAL ligado (o caixa lê enquanto a entrada de mercadoria escreve), `synchronous`
-em NORMAL e `busy_timeout` aplicados por conexão via interceptor. Backup é
-`VACUUM INTO` — copiar o arquivo na mão com o banco aberto produz cópia corrompida.
+**Estoque será um ledger.** Movimentos append-only: nunca atualizar, nunca apagar. Lote
+vencido não é apagado — vira perda registrada, que é o que alimenta o relatório de perdas.
+
+**Mapeamento fora do domínio.** Nenhum atributo BSON chega às entidades; o mapeamento vive
+em `StorageBsonSerialization`.
 
 ## Estado
 
-Fase 1 (fundação) em andamento. Sem entidades de negócio ainda: o que existe são os value
-objects `Money` e `Gtin`, o `DbContext` configurado e a localização funcionando ponta a
-ponta.
+Catálogo (categorias em árvore, produtos, embalagens) persistido em MongoDB, com os
+repositórios filtrando por loja. A API está de pé com `/health`; os endpoints do catálogo,
+o login e os testes de integração contra Mongo são os próximos passos.

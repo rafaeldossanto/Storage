@@ -2,6 +2,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="MongoDB.Driver" />
   </ItemGroup>
 
   <ItemGroup>

@@ -3,7 +3,7 @@
     <Project Path="src/Storage.Application/Storage.Application.csproj" />
     <Project Path="src/Storage.Domain/Storage.Domain.csproj" />
     <Project Path="src/Storage.Infrastructure/Storage.Infrastructure.csproj" />
-    <Project Path="src/Storage.Web/Storage.Web.csproj" />
+    <Project Path="src/Storage.Api/Storage.Api.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Storage.Domain.Tests/Storage.Domain.Tests.csproj" />

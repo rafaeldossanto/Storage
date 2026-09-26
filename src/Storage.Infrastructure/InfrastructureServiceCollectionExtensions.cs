@@ -1,46 +1,37 @@
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Driver;
+using Storage.Application.Abstractions;
 using Storage.Infrastructure.Persistence;
 
 namespace Storage.Infrastructure;
 
 public static class InfrastructureServiceCollectionExtensions
 {
-    public const string DatabaseFileName = "storage.db";
-
     /// <summary>
-    /// Registers the local store. The caller decides where the file lives, so the
+    /// Registers the MongoDB store. The caller supplies the connection, so the
     /// infrastructure layer never reads configuration on its own.
     /// </summary>
-    public static IServiceCollection AddStoragePersistence(this IServiceCollection services, string dataDirectory)
+    public static IServiceCollection AddStoragePersistence(
+        this IServiceCollection services,
+        string connectionString,
+        string databaseName)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(dataDirectory);
-
-        Directory.CreateDirectory(dataDirectory);
-
-        var connectionString = new SqliteConnectionStringBuilder
-        {
-            DataSource = Path.Combine(dataDirectory, DatabaseFileName),
-            Mode = SqliteOpenMode.ReadWriteCreate,
-            Pooling = true,
-            ForeignKeys = true,
-            // Waits for a busy writer instead of throwing SQLITE_BUSY at the cashier.
-            DefaultTimeout = 30,
-        }.ToString();
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        ArgumentException.ThrowIfNullOrWhiteSpace(databaseName);
 
         services.TryAddTimeProvider();
 
-        // A factory, not a scoped DbContext: a Blazor Server circuit lives as long as the
-        // browser tab, and a context shared across that lifetime would hold every entity
-        // it ever loaded and break under concurrent component renders.
-        services.AddDbContextFactory<StorageDbContext>((provider, options) =>
-            options.UseSqlite(connectionString)
-                   .AddInterceptors(
-                       new SqlitePragmaInterceptor(),
-                       new TimestampInterceptor(provider.GetRequiredService<TimeProvider>())));
+        // The driver's client is thread-safe and owns the connection pool, so exactly one
+        // instance serves the whole application - a new client per request would open a
+        // new pool each time.
+        services.AddSingleton<IMongoClient>(_ => new MongoClient(connectionString));
 
-        services.AddSingleton<SqliteStore>();
+        services.AddSingleton(provider =>
+            new MongoStorageContext(provider.GetRequiredService<IMongoClient>(), databaseName));
+
+        // Scoped: a repository reads the tenant of the request it is serving.
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<IProductRepository, ProductRepository>();
 
         return services;
     }

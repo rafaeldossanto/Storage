@@ -1,3 +1,5 @@
+using Storage.Domain.Common;
+
 namespace Storage.Domain.Catalog;
 
 /// <summary>
@@ -10,7 +12,7 @@ namespace Storage.Domain.Catalog;
 /// the database. That is what makes a discount aimed at one node reach its children
 /// without reaching its siblings.
 /// </remarks>
-public sealed class Category
+public sealed class Category : ITenantScoped
 {
     public const int NameMaxLength = 60;
     private const string Separator = "/";
@@ -20,9 +22,10 @@ public sealed class Category
         // EF Core materialisation.
     }
 
-    private Category(Guid id, string name, Category? parent)
+    private Category(Guid id, Guid tenantId, string name, Category? parent)
     {
         Id = id;
+        TenantId = tenantId;
         Name = name;
         ParentId = parent?.Id;
         Path = (parent?.Path ?? Separator) + Key(id) + Separator;
@@ -31,6 +34,9 @@ public sealed class Category
     }
 
     public Guid Id { get; private set; }
+
+    /// <summary>The shop this category belongs to.</summary>
+    public Guid TenantId { get; private set; }
 
     public string Name { get; private set; } = string.Empty;
 
@@ -50,11 +56,12 @@ public sealed class Category
 
     public bool IsRoot => ParentId is null;
 
-    public static Category CreateRoot(string name) =>
-        new(Guid.CreateVersion7(), Validate(name), parent: null);
+    public static Category CreateRoot(Guid tenantId, string name) =>
+        new(Guid.CreateVersion7(), tenantId, Validate(name), parent: null);
 
+    /// <summary>A child always belongs to the same shop as its parent.</summary>
     public Category CreateChild(string name) =>
-        new(Guid.CreateVersion7(), Validate(name), parent: this);
+        new(Guid.CreateVersion7(), TenantId, Validate(name), parent: this);
 
     /// <summary>
     /// The prefix that matches every descendant of this node, for
@@ -111,6 +118,13 @@ public sealed class Category
         {
             throw new InvalidOperationException(
                 $"Category '{Name}' cannot be moved under itself or one of its descendants.");
+        }
+
+        // One shop's tree can never graft onto another's.
+        if (newParent is not null && newParent.TenantId != TenantId)
+        {
+            throw new InvalidOperationException(
+                $"Category '{Name}' cannot be moved into another tenant's tree.");
         }
 
         if (newParent?.Id == ParentId)

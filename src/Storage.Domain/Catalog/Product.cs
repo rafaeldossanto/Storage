@@ -6,7 +6,7 @@ namespace Storage.Domain.Catalog;
 /// <summary>
 /// Something the shop sells, counted in one base unit and reachable by one or more barcodes.
 /// </summary>
-public sealed class Product : ITimestamped
+public sealed class Product : ITimestamped, ITenantScoped
 {
     public const int NameMaxLength = 120;
 
@@ -17,9 +17,16 @@ public sealed class Product : ITimestamped
         // EF Core materialisation.
     }
 
-    private Product(string name, Guid categoryId, UnitOfMeasure baseUnit, Money salePrice, Gtin gtin)
+    private Product(
+        Guid tenantId,
+        string name,
+        Guid categoryId,
+        UnitOfMeasure baseUnit,
+        Money salePrice,
+        Gtin gtin)
     {
         Id = Guid.CreateVersion7();
+        TenantId = tenantId;
         Name = Validate(name);
         CategoryId = categoryId;
         BaseUnit = baseUnit;
@@ -33,6 +40,9 @@ public sealed class Product : ITimestamped
     }
 
     public Guid Id { get; private set; }
+
+    /// <summary>The shop this product belongs to.</summary>
+    public Guid TenantId { get; private set; }
 
     public string Name { get; private set; } = string.Empty;
 
@@ -70,11 +80,12 @@ public sealed class Product : ITimestamped
     /// Registers a product with the barcode that was just scanned as its base unit.
     /// </summary>
     public static Product Create(
+        Guid tenantId,
         string name,
         Guid categoryId,
         UnitOfMeasure baseUnit,
         Money salePrice,
-        Gtin gtin) => new(name, categoryId, baseUnit, salePrice, gtin);
+        Gtin gtin) => new(tenantId, name, categoryId, baseUnit, salePrice, gtin);
 
     public PackagingUnit AddPackaging(Gtin gtin, string? name, int conversionFactor)
     {
@@ -139,6 +150,15 @@ public sealed class Product : ITimestamped
 
         AverageCost = averageCost;
     }
+
+    /// <summary>Stamped by the repository from the injected clock, never read from the entity.</summary>
+    public void MarkCreated(DateTimeOffset at)
+    {
+        CreatedAt = at;
+        UpdatedAt = at;
+    }
+
+    public void MarkUpdated(DateTimeOffset at) => UpdatedAt = at;
 
     public void Activate() => Active = true;
 

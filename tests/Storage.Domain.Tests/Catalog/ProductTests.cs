@@ -11,6 +11,7 @@ public class ProductTests
 
     private static Product NewProduct(string barcode = CanBarcode) =>
         Product.Create(
+            tenantId: Guid.CreateVersion7(),
             name: "Energético 473ml",
             categoryId: Guid.CreateVersion7(),
             baseUnit: UnitOfMeasure.Unit,
