@@ -10,10 +10,11 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" />
   </ItemGroup>
 
+  <!-- xUnit v3 runs on Microsoft.Testing.Platform and carries its own runner, so there is
+       no Microsoft.NET.Test.Sdk and no VSTest adapter here: the .NET 10 SDK refuses that
+       combination outright. -->
   <ItemGroup Label="Testing">
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="xunit.v3" Version="4.0.1" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>
 
 </Project>
