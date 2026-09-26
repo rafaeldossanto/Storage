@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Storage.Application.Abstractions;
+using Storage.Application.Errors;
 using Storage.Domain.Catalog;
 
 namespace Storage.Infrastructure.Persistence;
@@ -9,6 +10,8 @@ namespace Storage.Infrastructure.Persistence;
 public sealed class CategoryRepository(MongoStorageContext context, ITenantContext tenant)
     : ICategoryRepository
 {
+    private const string NameTaken = "A sibling category already has this name.";
+
     private FilterDefinition<Category> OfThisShop =>
         Builders<Category>.Filter.Eq(category => category.TenantId, tenant.TenantId);
 
@@ -57,7 +60,10 @@ public sealed class CategoryRepository(MongoStorageContext context, ITenantConte
         ArgumentNullException.ThrowIfNull(category);
         Guard(category);
 
-        await context.Categories.InsertOneAsync(category, options: null, cancellationToken);
+        await DuplicateKey.GuardAsync(
+            () => context.Categories.InsertOneAsync(category, options: null, cancellationToken),
+            ErrorCodes.CategoryNameTaken,
+            NameTaken);
     }
 
     public async Task UpdateAsync(Category category, CancellationToken cancellationToken = default)
@@ -69,7 +75,10 @@ public sealed class CategoryRepository(MongoStorageContext context, ITenantConte
             OfThisShop,
             Builders<Category>.Filter.Eq(stored => stored.Id, category.Id));
 
-        await context.Categories.ReplaceOneAsync(filter, category, new ReplaceOptions(), cancellationToken);
+        await DuplicateKey.GuardAsync(
+            () => context.Categories.ReplaceOneAsync(filter, category, new ReplaceOptions(), cancellationToken),
+            ErrorCodes.CategoryNameTaken,
+            NameTaken);
     }
 
     public async Task UpdateManyAsync(
@@ -98,7 +107,10 @@ public sealed class CategoryRepository(MongoStorageContext context, ITenantConte
 
         // A moved branch is rewritten in one round trip: leaving half the descendants with
         // the old path would strand them outside every prefix query.
-        await context.Categories.BulkWriteAsync(writes, new BulkWriteOptions(), cancellationToken);
+        await DuplicateKey.GuardAsync(
+            () => context.Categories.BulkWriteAsync(writes, new BulkWriteOptions(), cancellationToken),
+            ErrorCodes.CategoryNameTaken,
+            NameTaken);
     }
 
     public async Task<bool> HasProductsAsync(

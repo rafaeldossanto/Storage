@@ -1,3 +1,4 @@
+using Storage.Domain.Common;
 using Storage.Domain.ValueObjects;
 
 namespace Storage.Domain.Catalog;
@@ -21,8 +22,15 @@ public sealed class PackagingUnit
 
     internal PackagingUnit(Guid productId, Gtin gtin, string? name, int conversionFactor, bool isDefault)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(conversionFactor, 1);
+        if (conversionFactor < 1)
+        {
+            throw new DomainException(
+                DomainErrors.PackagingFactorInvalid,
+                "A packaging holds at least one base unit.");
+        }
 
+        // Only the product itself creates a default packaging, always with factor 1, so
+        // breaking this is a bug in the code rather than a rule the user broke.
         if (isDefault && conversionFactor != 1)
         {
             throw new ArgumentException(
@@ -73,7 +81,8 @@ public sealed class PackagingUnit
 
         return trimmed.Length <= NameMaxLength
             ? trimmed
-            : throw new ArgumentException(
-                $"A packaging name is limited to {NameMaxLength} characters.", nameof(name));
+            : throw new DomainException(
+                DomainErrors.PackagingNameInvalid,
+                $"A packaging name is limited to {NameMaxLength} characters.");
     }
 }

@@ -116,15 +116,29 @@ public sealed class Category : ITenantScoped
         // subtree from the root and no query would ever find it again.
         if (newParent is not null && (newParent.Id == Id || newParent.IsDescendantOf(this)))
         {
-            throw new InvalidOperationException(
+            throw new DomainException(
+                DomainErrors.CategoryMoveIntoOwnBranch,
                 $"Category '{Name}' cannot be moved under itself or one of its descendants.");
         }
 
         // One shop's tree can never graft onto another's.
         if (newParent is not null && newParent.TenantId != TenantId)
         {
-            throw new InvalidOperationException(
+            throw new DomainException(
+                DomainErrors.CategoryMoveAcrossShops,
                 $"Category '{Name}' cannot be moved into another tenant's tree.");
+        }
+
+        // Checked before anything changes: failing halfway through the loop would leave
+        // this node and part of its branch already rewritten. A wrong set is a bug in the
+        // caller, not a rule the user broke, hence no DomainException.
+        var foreign = descendants.FirstOrDefault(descendant =>
+            descendant.Id == Id || !descendant.Path.StartsWith(Path, StringComparison.Ordinal));
+
+        if (foreign is not null)
+        {
+            throw new InvalidOperationException(
+                $"Category '{foreign.Name}' is not a descendant of '{Name}'.");
         }
 
         if (newParent?.Id == ParentId)
@@ -143,12 +157,6 @@ public sealed class Category : ITenantScoped
 
         foreach (var descendant in descendants)
         {
-            if (!descendant.Path.StartsWith(oldPath, StringComparison.Ordinal) || descendant.Id == Id)
-            {
-                throw new InvalidOperationException(
-                    $"Category '{descendant.Name}' is not a descendant of '{Name}'.");
-            }
-
             descendant.Path = Path + descendant.Path[oldPath.Length..];
             descendant.Depth += depthShift;
         }
@@ -156,15 +164,17 @@ public sealed class Category : ITenantScoped
 
     private static string Key(Guid id) => id.ToString("N");
 
-    private static string Validate(string name)
+    private static string Validate(string? name)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var trimmed = name?.Trim();
 
-        var trimmed = name.Trim();
+        if (string.IsNullOrEmpty(trimmed) || trimmed.Length > NameMaxLength)
+        {
+            throw new DomainException(
+                DomainErrors.CategoryNameInvalid,
+                $"A category name is required and limited to {NameMaxLength} characters.");
+        }
 
-        return trimmed.Length <= NameMaxLength
-            ? trimmed
-            : throw new ArgumentException(
-                $"A category name is limited to {NameMaxLength} characters.", nameof(name));
+        return trimmed;
     }
 }

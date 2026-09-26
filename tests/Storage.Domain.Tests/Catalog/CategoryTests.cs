@@ -1,4 +1,5 @@
 using Storage.Domain.Catalog;
+using Storage.Domain.Common;
 
 namespace Storage.Domain.Tests.Catalog;
 
@@ -117,7 +118,7 @@ public class CategoryTests
         var energy = beverages.CreateChild("Energéticos");
 
         // Allowing this would cut the whole branch loose from every root.
-        Assert.Throws<InvalidOperationException>(() => beverages.MoveTo(energy, [energy]));
+        DomainAssert.Breaks(DomainErrors.CategoryMoveIntoOwnBranch, () => beverages.MoveTo(energy, [energy]));
     }
 
     [Fact]
@@ -125,7 +126,7 @@ public class CategoryTests
     {
         var beverages = Category.CreateRoot(Tenant, "Bebidas");
 
-        Assert.Throws<InvalidOperationException>(() => beverages.MoveTo(beverages, []));
+        DomainAssert.Breaks(DomainErrors.CategoryMoveIntoOwnBranch, () => beverages.MoveTo(beverages, []));
     }
 
     [Fact]
@@ -141,12 +142,41 @@ public class CategoryTests
     }
 
     [Fact]
+    public void A_refused_move_leaves_the_whole_branch_untouched()
+    {
+        var beverages = Category.CreateRoot(Tenant, "Bebidas");
+        var grocery = Category.CreateRoot(Tenant, "Mercearia");
+        var energy = beverages.CreateChild("Energéticos");
+        var sugarFree = energy.CreateChild("Zero açúcar");
+        var cleaning = grocery.CreateChild("Limpeza");
+        var energyPath = energy.Path;
+        var sugarFreePath = sugarFree.Path;
+
+        // The valid descendant comes first: a move that validated while rewriting would
+        // already have changed it by the time the foreign node is reached.
+        Assert.Throws<InvalidOperationException>(() => energy.MoveTo(grocery, [sugarFree, cleaning]));
+
+        Assert.Equal(beverages.Id, energy.ParentId);
+        Assert.Equal(energyPath, energy.Path);
+        Assert.Equal(sugarFreePath, sugarFree.Path);
+        Assert.Equal(2, sugarFree.Depth);
+    }
+
+    [Fact]
+    public void A_name_over_the_limit_is_refused()
+    {
+        DomainAssert.Breaks(
+            DomainErrors.CategoryNameInvalid,
+            () => Category.CreateRoot(Tenant, new string('x', Category.NameMaxLength + 1)));
+    }
+
+    [Fact]
     public void A_branch_cannot_be_grafted_onto_another_shops_tree()
     {
         var mine = Category.CreateRoot(Tenant, "Bebidas");
         var theirs = Category.CreateRoot(Guid.CreateVersion7(), "Mercearia");
 
-        Assert.Throws<InvalidOperationException>(() => mine.MoveTo(theirs, []));
+        DomainAssert.Breaks(DomainErrors.CategoryMoveAcrossShops, () => mine.MoveTo(theirs, []));
     }
 
     [Fact]
@@ -163,7 +193,7 @@ public class CategoryTests
     [InlineData(null)]
     public void A_category_needs_a_name(string? name)
     {
-        Assert.ThrowsAny<ArgumentException>(() => Category.CreateRoot(Tenant, name!));
+        DomainAssert.Breaks(DomainErrors.CategoryNameInvalid, () => Category.CreateRoot(Tenant, name!));
     }
 
     [Fact]

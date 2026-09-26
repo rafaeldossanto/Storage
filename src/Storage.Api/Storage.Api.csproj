@@ -4,4 +4,8 @@
     <ProjectReference Include="..\Storage.Infrastructure\Storage.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+  </ItemGroup>
+
 </Project>

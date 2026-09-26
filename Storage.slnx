@@ -6,6 +6,7 @@
     <Project Path="src/Storage.Api/Storage.Api.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Storage.Application.Tests/Storage.Application.Tests.csproj" />
     <Project Path="tests/Storage.Domain.Tests/Storage.Domain.Tests.csproj" />
     <Project Path="tests/Storage.Integration.Tests/Storage.Integration.Tests.csproj" />
   </Folder>

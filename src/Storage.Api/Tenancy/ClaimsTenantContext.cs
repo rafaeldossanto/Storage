@@ -22,7 +22,14 @@ public sealed class ClaimsTenantContext(IHttpContextAccessor accessor) : ITenant
 
             return Guid.TryParse(value, out var tenantId)
                 ? tenantId
-                : throw new UnauthorizedAccessException("The request carries no tenant.");
+                : throw new MissingTenantException();
         }
     }
 }
+
+/// <summary>
+/// The request reached a shop-scoped operation without saying which shop. Its own type so
+/// the API can answer 401 for exactly this, and not for every access-denied the runtime
+/// might raise on its own.
+/// </summary>
+public sealed class MissingTenantException() : Exception("The request carries no tenant.");

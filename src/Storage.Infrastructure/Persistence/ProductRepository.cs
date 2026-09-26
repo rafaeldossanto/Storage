@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Storage.Application.Abstractions;
+using Storage.Application.Errors;
 using Storage.Domain.Catalog;
 using Storage.Domain.ValueObjects;
 
@@ -12,6 +13,8 @@ public sealed class ProductRepository(
     ITenantContext tenant,
     TimeProvider clock) : IProductRepository
 {
+    private const string BarcodeTaken = "One of these barcodes already belongs to another product.";
+
     private FilterDefinition<Product> OfThisShop =>
         Builders<Product>.Filter.Eq(product => product.TenantId, tenant.TenantId);
 
@@ -104,7 +107,10 @@ public sealed class ProductRepository(
 
         product.MarkCreated(clock.GetUtcNow());
 
-        await context.Products.InsertOneAsync(product, options: null, cancellationToken);
+        await DuplicateKey.GuardAsync(
+            () => context.Products.InsertOneAsync(product, options: null, cancellationToken),
+            ErrorCodes.BarcodeTaken,
+            BarcodeTaken);
     }
 
     public async Task UpdateAsync(Product product, CancellationToken cancellationToken = default)
@@ -118,7 +124,10 @@ public sealed class ProductRepository(
             OfThisShop,
             Builders<Product>.Filter.Eq(stored => stored.Id, product.Id));
 
-        await context.Products.ReplaceOneAsync(filter, product, new ReplaceOptions(), cancellationToken);
+        await DuplicateKey.GuardAsync(
+            () => context.Products.ReplaceOneAsync(filter, product, new ReplaceOptions(), cancellationToken),
+            ErrorCodes.BarcodeTaken,
+            BarcodeTaken);
     }
 
     /// <summary>

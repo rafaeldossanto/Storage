@@ -70,8 +70,22 @@ vencido não é apagado — vira perda registrada, que é o que alimenta o relat
 **Mapeamento fora do domínio.** Nenhum atributo BSON chega às entidades; o mapeamento vive
 em `StorageBsonSerialization`.
 
+## Contrato da API
+
+- **Dinheiro em centavos inteiros** (`salePriceCents: 899`). Um número JSON vira `double` no
+  navegador, e 8,99 não cabe exato num `double`; 899 cabe. O front formata.
+- **Enums pelo nome** (`"baseUnit": "Unit"`), a mesma regra do banco.
+- **Erros com código estável.** Toda recusa volta como problem details com `code`
+  (`barcode.taken`, `category.move_into_own_branch`...). O front traduz o `code` para
+  português; o `detail` é texto técnico em inglês e não deve ir para a tela. Qualquer outra
+  falha é bug e volta como 500 sem mensagem.
+- **404 no código de barras é caminho normal**: `GET /api/products/by-barcode/{codigo}`
+  sem produto é a deixa para a tela abrir o cadastro já preenchido.
+- **OpenAPI** em `/openapi/v1.json` no ambiente de desenvolvimento — é de onde o front gera
+  o cliente tipado.
+
 ## Estado
 
-Catálogo (categorias em árvore, produtos, embalagens) persistido em MongoDB, com os
-repositórios filtrando por loja. A API está de pé com `/health`; os endpoints do catálogo,
-o login e os testes de integração contra Mongo são os próximos passos.
+Catálogo completo no backend: categorias em árvore e produtos com embalagens, expostos em
+`/api/categories` e `/api/products`, com os dados de cada loja isolados. Faltam o login,
+os testes contra um MongoDB de verdade e o front.

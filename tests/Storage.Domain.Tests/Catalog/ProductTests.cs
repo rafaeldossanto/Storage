@@ -1,4 +1,5 @@
 using Storage.Domain.Catalog;
+using Storage.Domain.Common;
 using Storage.Domain.ValueObjects;
 
 namespace Storage.Domain.Tests.Catalog;
@@ -53,7 +54,8 @@ public class ProductTests
     {
         var product = NewProduct();
 
-        Assert.Throws<InvalidOperationException>(
+        DomainAssert.Breaks(
+            DomainErrors.ProductBarcodeRepeated,
             () => product.AddPackaging(Gtin.Parse(CanBarcode), "Fardo 12", 12));
     }
 
@@ -62,7 +64,8 @@ public class ProductTests
     {
         var product = NewProduct();
 
-        Assert.Throws<InvalidOperationException>(
+        DomainAssert.Breaks(
+            DomainErrors.ProductBarcodeNotOnProduct,
             () => product.BaseUnitsFor(Gtin.Parse(OtherBarcode)));
     }
 
@@ -71,7 +74,8 @@ public class ProductTests
     {
         var product = NewProduct();
 
-        Assert.Throws<ArgumentOutOfRangeException>(
+        DomainAssert.Breaks(
+            DomainErrors.PackagingFactorInvalid,
             () => product.AddPackaging(Gtin.Parse(PackBarcode), "Fardo", conversionFactor: 0));
     }
 
@@ -81,7 +85,8 @@ public class ProductTests
         var product = NewProduct();
 
         // Stock is counted in it: removing it would leave the balance without a unit.
-        Assert.Throws<InvalidOperationException>(
+        DomainAssert.Breaks(
+            DomainErrors.ProductDefaultPackagingRequired,
             () => product.RemovePackaging(product.DefaultPackaging.Id));
     }
 
@@ -112,7 +117,7 @@ public class ProductTests
     {
         var product = NewProduct();
 
-        Assert.Throws<ArgumentException>(() => product.ChangePrice(Money.FromDecimal(-1m)));
+        DomainAssert.Breaks(DomainErrors.ProductPriceNegative, () => product.ChangePrice(Money.FromDecimal(-1m)));
     }
 
     [Fact]
@@ -120,7 +125,7 @@ public class ProductTests
     {
         var product = NewProduct();
 
-        Assert.Throws<ArgumentException>(() => product.UpdateAverageCost(Money.FromCents(-1)));
+        DomainAssert.Breaks(DomainErrors.ProductCostNegative, () => product.UpdateAverageCost(Money.FromCents(-1)));
     }
 
     [Fact]

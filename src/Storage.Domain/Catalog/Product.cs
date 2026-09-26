@@ -94,7 +94,8 @@ public sealed class Product : ITimestamped, ITenantScoped
     {
         if (_packagings.Any(packaging => packaging.Gtin == gtin))
         {
-            throw new InvalidOperationException(
+            throw new DomainException(
+                DomainErrors.ProductBarcodeRepeated,
                 $"Product '{Name}' already answers to barcode {gtin.ToDisplay()}.");
         }
 
@@ -107,11 +108,14 @@ public sealed class Product : ITimestamped, ITenantScoped
     public void RemovePackaging(Guid packagingId)
     {
         var packaging = _packagings.SingleOrDefault(candidate => candidate.Id == packagingId)
-            ?? throw new InvalidOperationException("Packaging not found on this product.");
+            ?? throw new DomainException(
+                DomainErrors.PackagingNotFound,
+                "Packaging not found on this product.");
 
         if (packaging.IsDefault)
         {
-            throw new InvalidOperationException(
+            throw new DomainException(
+                DomainErrors.ProductDefaultPackagingRequired,
                 "The base unit packaging cannot be removed: stock is counted in it.");
         }
 
@@ -126,7 +130,8 @@ public sealed class Product : ITimestamped, ITenantScoped
     /// </summary>
     public int BaseUnitsFor(Gtin gtin) =>
         FindPackaging(gtin)?.ConversionFactor
-        ?? throw new InvalidOperationException(
+        ?? throw new DomainException(
+            DomainErrors.ProductBarcodeNotOnProduct,
             $"Barcode {gtin.ToDisplay()} does not belong to product '{Name}'.");
 
     public void Rename(string name) => Name = Validate(name);
@@ -137,7 +142,13 @@ public sealed class Product : ITimestamped, ITenantScoped
 
     public void SetMinimumStock(int minimumStock)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(minimumStock);
+        if (minimumStock < 0)
+        {
+            throw new DomainException(
+                DomainErrors.ProductMinimumStockNegative,
+                "Minimum stock cannot be negative.");
+        }
+
         MinimumStock = minimumStock;
     }
 
@@ -148,7 +159,7 @@ public sealed class Product : ITimestamped, ITenantScoped
     {
         if (averageCost.IsNegative)
         {
-            throw new ArgumentException("Cost cannot be negative.", nameof(averageCost));
+            throw new DomainException(DomainErrors.ProductCostNegative, "Cost cannot be negative.");
         }
 
         AverageCost = averageCost;
@@ -173,18 +184,22 @@ public sealed class Product : ITimestamped, ITenantScoped
 
     private static Money Positive(Money salePrice) =>
         salePrice.IsNegative
-            ? throw new ArgumentException("A sale price cannot be negative.", nameof(salePrice))
+            ? throw new DomainException(
+                DomainErrors.ProductPriceNegative,
+                "A sale price cannot be negative.")
             : salePrice;
 
-    private static string Validate(string name)
+    private static string Validate(string? name)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var trimmed = name?.Trim();
 
-        var trimmed = name.Trim();
+        if (string.IsNullOrEmpty(trimmed) || trimmed.Length > NameMaxLength)
+        {
+            throw new DomainException(
+                DomainErrors.ProductNameInvalid,
+                $"A product name is required and limited to {NameMaxLength} characters.");
+        }
 
-        return trimmed.Length <= NameMaxLength
-            ? trimmed
-            : throw new ArgumentException(
-                $"A product name is limited to {NameMaxLength} characters.", nameof(name));
+        return trimmed;
     }
 }
