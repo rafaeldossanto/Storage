@@ -82,6 +82,9 @@ internal sealed class InMemoryProductRepository(ITenantContext tenant) : IProduc
     public Task<Product?> FindAsync(Guid id, CancellationToken cancellationToken = default) =>
         Task.FromResult(OfThisShop().FirstOrDefault(product => product.Id == id));
 
+    public Task<IReadOnlyList<Product>> ListWithMinimumStockAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Product>>(OfThisShop().Where(product => product.MinimumStock > 0).ToArray());
+
     public Task<IReadOnlyList<Product>> ListByIdsAsync(
         IReadOnlyCollection<Guid> ids,
         CancellationToken cancellationToken = default) =>

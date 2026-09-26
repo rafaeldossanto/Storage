@@ -81,11 +81,31 @@ public sealed class MongoStockStore(MongoStorageContext context, ITenantContext 
             return new Dictionary<Guid, StockLevel>();
         }
 
+        var levels = productIds.ToDictionary(id => id, StockLevel.Empty);
+
+        foreach (var level in await SumAvailableAsync(Builders<Batch>.Filter.In(batch => batch.ProductId, productIds), cancellationToken))
+        {
+            levels[level.ProductId] = level;
+        }
+
+        return levels;
+    }
+
+    public Task<IReadOnlyList<StockLevel>> AllLevelsAsync(CancellationToken cancellationToken = default) =>
+        SumAvailableAsync(Builders<Batch>.Filter.Empty, cancellationToken);
+
+    /// <summary>
+    /// Balance, value and nearest expiry per product, summed where the data is: one round
+    /// trip however many batches a product has.
+    /// </summary>
+    private async Task<IReadOnlyList<StockLevel>> SumAvailableAsync(
+        FilterDefinition<Batch> products,
+        CancellationToken cancellationToken)
+    {
         var available = BatchesOfThisShop
             & Builders<Batch>.Filter.Eq(batch => batch.Status, BatchStatus.Available)
-            & Builders<Batch>.Filter.In(batch => batch.ProductId, productIds);
+            & products;
 
-        // Summed where the data is: one round trip however many batches a product has.
         var groups = await context.Batches
             .Aggregate()
             .Match(available)
@@ -101,20 +121,13 @@ public sealed class MongoStockStore(MongoStorageContext context, ITenantContext 
             })
             .ToListAsync(cancellationToken);
 
-        var levels = productIds.ToDictionary(id => id, StockLevel.Empty);
-
-        foreach (var group in groups)
-        {
-            var productId = group["_id"].AsBsonBinaryData.ToGuid(GuidRepresentation.Standard);
-
-            levels[productId] = new StockLevel(
-                productId,
+        return groups
+            .Select(group => new StockLevel(
+                group["_id"].AsBsonBinaryData.ToGuid(GuidRepresentation.Standard),
                 group["Quantity"].ToInt32(),
                 Money.FromCents(group["Value"].ToInt64()),
-                group["NextExpiry"].IsBsonNull ? null : DateOnly.FromDateTime(group["NextExpiry"].ToUniversalTime()));
-        }
-
-        return levels;
+                group["NextExpiry"].IsBsonNull ? null : DateOnly.FromDateTime(group["NextExpiry"].ToUniversalTime())))
+            .ToArray();
     }
 
     public async Task CommitAsync(StockChanges changes, CancellationToken cancellationToken = default)

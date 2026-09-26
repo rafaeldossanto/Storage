@@ -73,6 +73,12 @@ internal sealed class InMemoryStockStore(Guid tenantId) : IStockStore
         return Task.FromResult(levels);
     }
 
+    public Task<IReadOnlyList<StockLevel>> AllLevelsAsync(CancellationToken cancellationToken = default)
+    {
+        var productIds = Batches.Where(batch => batch.TenantId == tenantId && batch.IsAvailable).Select(batch => batch.ProductId).Distinct().ToArray();
+        return Task.FromResult<IReadOnlyList<StockLevel>>(LevelsAsync(productIds).Result.Values.ToArray());
+    }
+
     public Task CommitAsync(StockChanges changes, CancellationToken cancellationToken = default)
     {
         Commits++;

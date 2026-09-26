@@ -107,6 +107,28 @@ public sealed class StockStoreTests(MongoFixture mongo)
     }
 
     [Fact]
+    public async Task The_whole_shop_is_summed_per_product_in_one_query()
+    {
+        var db = await mongo.NewDatabaseAsync(Token);
+        var store = Store(db);
+        var water = Guid.CreateVersion7();
+        await SeedAsync(store, Drink, 10, 500);
+        await SeedAsync(store, Drink, 5, 600);
+        await SeedAsync(store, water, 20, 100);
+
+        var otherShop = Guid.CreateVersion7();
+        var theirs = new StockChanges();
+        theirs.Add(Batch.Receive(otherShop, Drink, 99, Money.FromCents(999), null, Now));
+        await new MongoStockStore(db, new FixedTenant(otherShop)).CommitAsync(theirs, Token);
+
+        var levels = await store.AllLevelsAsync(Token);
+
+        Assert.Equal(2, levels.Count);
+        Assert.Equal(15, levels.Single(level => level.ProductId == Drink).Quantity);
+        Assert.Equal(8000 + 2000, levels.Sum(level => level.Value.Cents));
+    }
+
+    [Fact]
     public async Task Another_shops_stock_is_neither_counted_nor_listed()
     {
         var db = await mongo.NewDatabaseAsync(Token);

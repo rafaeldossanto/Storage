@@ -732,6 +732,117 @@
         }
       }
     },
+    "/api/stock": {
+      "get": {
+        "tags": [
+          "Stock"
+        ],
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "includeDescendants",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StockItemDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stock/below-minimum": {
+      "get": {
+        "tags": [
+          "Stock"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StockItemDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stock/summary": {
+      "get": {
+        "tags": [
+          "Stock"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockSummaryDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stock/products/{productId}": {
+      "get": {
+        "tags": [
+          "Stock"
+        ],
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductStockDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/stock/products/{productId}/removals": {
       "post": {
         "tags": [
@@ -1102,6 +1213,66 @@
           }
         }
       },
+      "BatchDto": {
+        "required": [
+          "id",
+          "initialQuantity",
+          "remainingQuantity",
+          "unitCostCents",
+          "expiryDate",
+          "receivedAt",
+          "status",
+          "receiptId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "initialQuantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "remainingQuantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitCostCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "expiryDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchStatus"
+          },
+          "receiptId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "BatchStatus": {
+        "enum": [
+          "Available",
+          "Depleted",
+          "Expired",
+          "Blocked"
+        ]
+      },
       "CategoryDto": {
         "required": [
           "id",
@@ -1238,6 +1409,79 @@
           }
         }
       },
+      "MovementDto": {
+        "required": [
+          "id",
+          "type",
+          "quantity",
+          "unitCostCents",
+          "valueCents",
+          "occurredAt",
+          "batchId",
+          "userId",
+          "documentId",
+          "note"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "$ref": "#/components/schemas/MovementType"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitCostCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "valueCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "batchId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "documentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "MovementType": {
+        "enum": [
+          "Receipt",
+          "ExpiryLoss",
+          "DamageLoss",
+          "CountAdjustment",
+          "ReturnToSupplier"
+        ]
+      },
       "PackagingDto": {
         "required": [
           "id",
@@ -1335,6 +1579,31 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "ProductStockDto": {
+        "required": [
+          "stock",
+          "batches",
+          "movements"
+        ],
+        "type": "object",
+        "properties": {
+          "stock": {
+            "$ref": "#/components/schemas/StockItemDto"
+          },
+          "batches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatchDto"
+            }
+          },
+          "movements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MovementDto"
+            }
           }
         }
       },
@@ -1656,6 +1925,63 @@
           }
         }
       },
+      "StockItemDto": {
+        "required": [
+          "productId",
+          "name",
+          "categoryId",
+          "active",
+          "minimumStock",
+          "quantity",
+          "stockValueCents",
+          "averageCostCents",
+          "nextExpiry",
+          "belowMinimum"
+        ],
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "minimumStock": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stockValueCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "averageCostCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nextExpiry": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "belowMinimum": {
+            "type": "boolean"
+          }
+        }
+      },
       "StockLevelDto": {
         "required": [
           "productId",
@@ -1696,6 +2022,33 @@
           "Damage",
           "ReturnToSupplier"
         ]
+      },
+      "StockSummaryDto": {
+        "required": [
+          "productsInStock",
+          "units",
+          "stockValueCents",
+          "belowMinimumCount"
+        ],
+        "type": "object",
+        "properties": {
+          "productsInStock": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "units": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stockValueCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "belowMinimumCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
       },
       "SupplierDto": {
         "required": [

@@ -7,6 +7,9 @@ public interface IProductRepository
 {
     Task<Product?> FindAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>Products with a minimum stock set - the only ones that can fall below it.</summary>
+    Task<IReadOnlyList<Product>> ListWithMinimumStockAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Several products in one round trip - for screens that list many at once.</summary>
     Task<IReadOnlyList<Product>> ListByIdsAsync(
         IReadOnlyCollection<Guid> ids,

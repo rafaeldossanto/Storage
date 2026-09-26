@@ -39,6 +39,9 @@ public interface IStockStore
         IReadOnlyCollection<Guid> productIds,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Every product of the shop that has stock, with its level - for the shop totals.</summary>
+    Task<IReadOnlyList<StockLevel>> AllLevelsAsync(CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Writes a set of changes all at once, or none of them.
     /// </summary>

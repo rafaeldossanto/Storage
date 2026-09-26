@@ -27,6 +27,11 @@ public sealed class ProductRepository(
         return await context.Products.Find(filter).FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Product>> ListWithMinimumStockAsync(CancellationToken cancellationToken = default) =>
+        await context.Products
+            .Find(Builders<Product>.Filter.And(OfThisShop, Builders<Product>.Filter.Gt(product => product.MinimumStock, 0)))
+            .ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<Product>> ListByIdsAsync(
         IReadOnlyCollection<Guid> ids,
         CancellationToken cancellationToken = default)
