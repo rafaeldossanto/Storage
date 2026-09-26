@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json.Serialization;
 using Storage.Api.Endpoints;
 using Storage.Api.Errors;
@@ -9,11 +10,19 @@ using Storage.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// `dotnet build` runs this file through GetDocument.Insider to write the OpenAPI contract.
+// That run only builds the host to read the endpoints - it never serves a request nor
+// touches the database - so it must not fail for lack of a connection string.
+var generatingOpenApiDocument =
+    Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
+
 var mongo = builder.Configuration.GetSection("Mongo");
 
 builder.Services.AddStoragePersistence(
     connectionString: mongo["ConnectionString"]
-        ?? throw new InvalidOperationException("Mongo:ConnectionString is not configured."),
+        ?? (generatingOpenApiDocument
+            ? "mongodb://unused-while-generating-the-openapi-document"
+            : throw new InvalidOperationException("Mongo:ConnectionString is not configured.")),
     databaseName: mongo["Database"] ?? "storage");
 
 builder.Services.AddStorageApplication();
@@ -34,9 +43,16 @@ else
     builder.Services.AddScoped<ITenantContext, ClaimsTenantContext>();
 }
 
-// Enums travel by name ("Unit", not 0), the same rule as in the database.
 builder.Services.ConfigureHttpJsonOptions(options =>
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+{
+    // Enums travel by name ("Unit", not 0), the same rule as in the database.
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+
+    // Numbers are numbers. The web default also accepts "899" as text, which types every
+    // amount in the contract as integer-or-string and pushes that ambiguity into the
+    // front end's generated client.
+    options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+});
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ProblemExceptionHandler>();
@@ -69,7 +85,11 @@ app.MapCategoryEndpoints();
 app.MapProductEndpoints();
 
 // Idempotent: creating an index that already exists is a no-op, so every boot guarantees
-// the unique barcode index and the path index are in place.
-await app.Services.GetRequiredService<MongoStorageContext>().EnsureIndexesAsync();
+// the unique barcode index and the path index are in place. Skipped while the build writes
+// the OpenAPI contract, which runs this file up to here with no database to talk to.
+if (!generatingOpenApiDocument)
+{
+    await app.Services.GetRequiredService<MongoStorageContext>().EnsureIndexesAsync();
+}
 
 await app.RunAsync();
