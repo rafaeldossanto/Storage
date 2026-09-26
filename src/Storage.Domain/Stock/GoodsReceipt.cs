@@ -4,6 +4,12 @@ using Storage.Domain.ValueObjects;
 
 namespace Storage.Domain.Stock;
 
+public enum GoodsReceiptStatus
+{
+    Received,
+    Cancelled,
+}
+
 /// <summary>One scanned line of a delivery, as it came in and as it went on the shelf.</summary>
 public sealed class ReceiptLine
 {
@@ -67,6 +73,9 @@ public sealed class GoodsReceipt : ITenantScoped
     public const int NoteMaxLength = 200;
     public const int MaxLines = 500;
 
+    /// <summary>How long a receipt typed wrong - 100 instead of 10 - can be taken back.</summary>
+    public static readonly TimeSpan CancellationWindow = TimeSpan.FromMinutes(10);
+
     // Not readonly: the MongoDB driver fills it when reading and silently skips readonly fields.
     private List<ReceiptLine> _lines = [];
 
@@ -106,6 +115,16 @@ public sealed class GoodsReceipt : ITenantScoped
     public Guid UserId { get; private set; }
 
     public DateTimeOffset ReceivedAt { get; private set; }
+
+    /// <summary>Received, or cancelled moments later. Receipts written before cancelling existed read as received.</summary>
+    public GoodsReceiptStatus Status { get; private set; }
+
+    public Guid? CancelledBy { get; private set; }
+
+    public DateTimeOffset? CancelledAt { get; private set; }
+
+    /// <summary>Checked when the receipt is cancelled, so it cannot be cancelled twice at once.</summary>
+    public long Version { get; private set; }
 
     public IReadOnlyList<ReceiptLine> Lines => _lines.AsReadOnly();
 
@@ -177,6 +196,30 @@ public sealed class GoodsReceipt : ITenantScoped
         _lines.Add(new ReceiptLine(product.Id, scanned, quantity, baseUnits, packagingCost, unitCost, expiryDate, batch.Id));
 
         return batch;
+    }
+
+    /// <summary>
+    /// Takes a receipt back, for a few minutes after it was entered. The caller checks the
+    /// batches are still as they arrived: goods already sold cannot be un-received.
+    /// </summary>
+    public void Cancel(Guid userId, DateTimeOffset at)
+    {
+        if (Status != GoodsReceiptStatus.Received)
+        {
+            throw new DomainException(DomainErrors.ReceiptNotReceived, $"This receipt is {Status}.");
+        }
+
+        if (at - ReceivedAt > CancellationWindow)
+        {
+            throw new DomainException(
+                DomainErrors.ReceiptCancelWindowClosed,
+                $"A receipt can be cancelled for {CancellationWindow.TotalMinutes} minutes after it is entered.");
+        }
+
+        Status = GoodsReceiptStatus.Cancelled;
+        CancelledBy = userId;
+        CancelledAt = at;
+        Version++;
     }
 
     private static string? Optional(string? value, int maxLength)

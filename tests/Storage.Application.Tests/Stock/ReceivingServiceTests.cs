@@ -17,6 +17,7 @@ public sealed class ReceivingServiceTests
     private static readonly Guid Shop = Guid.CreateVersion7();
     private static readonly Guid Operator = Guid.CreateVersion7();
 
+    private readonly ManualClock _clock = new(Now);
     private readonly InMemoryStockStore _stock = new(Shop);
     private readonly InMemorySupplierRepository _suppliers;
     private readonly ReceivingService _service;
@@ -29,7 +30,7 @@ public sealed class ReceivingServiceTests
         var products = new InMemoryProductRepository(tenant);
         _suppliers = new InMemorySupplierRepository(tenant);
         _service = new ReceivingService(
-            _stock, products, _suppliers, new FixedCalendar(Today), tenant, new FixedUser(Operator), new ManualClock(Now));
+            _stock, products, _suppliers, new FixedCalendar(Today), tenant, new FixedUser(Operator), _clock);
 
         _drink = Product.Create(Shop, "Energético 473ml", Guid.CreateVersion7(), UnitOfMeasure.Unit,
             Money.FromCents(899), Gtin.Parse("7891000000014"));
@@ -164,5 +165,41 @@ public sealed class ReceivingServiceTests
 
         Assert.Equal("Energético 473ml", Assert.Single(reread.Lines).ProductName);
         Assert.Equal("17891000000011", reread.Lines[0].Barcode);
+    }
+
+    [Fact]
+    public async Task A_receipt_typed_wrong_is_taken_back_and_its_goods_leave_the_shelf()
+    {
+        var receipt = await _service.ReceiveAsync(new ReceiveGoodsRequest([new("17891000000011", 2, 6000, December)]), Token);
+        _clock.Advance(TimeSpan.FromMinutes(3));
+
+        var cancelled = await _service.CancelAsync(receipt.Id, Token);
+
+        Assert.Equal(GoodsReceiptStatus.Cancelled, cancelled.Status);
+        var batch = Assert.Single(_stock.Batches);
+        Assert.Equal(0, batch.RemainingQuantity);
+        var back = Assert.Single(_stock.Movements, movement => movement.Type == MovementType.ReceiptCancellation);
+        Assert.Equal(-24, back.Quantity);
+        Assert.Equal(receipt.Id, back.DocumentId);
+    }
+
+    [Fact]
+    public async Task A_receipt_whose_goods_started_to_sell_stays()
+    {
+        var receipt = await _service.ReceiveAsync(new ReceiveGoodsRequest([new("7891000000021", 10, 450)]), Token);
+        _stock.Batches[0].Take(1);
+
+        await Refused.WithAsync(ErrorKind.Conflict, ErrorCodes.ReceiptStockMoved, () => _service.CancelAsync(receipt.Id, Token));
+    }
+
+    [Fact]
+    public async Task After_ten_minutes_a_receipt_stays()
+    {
+        var receipt = await _service.ReceiveAsync(new ReceiveGoodsRequest([new("7891000000021", 10, 450)]), Token);
+        _clock.Advance(GoodsReceipt.CancellationWindow + TimeSpan.FromSeconds(1));
+
+        var refusal = await Assert.ThrowsAsync<DomainException>(() => _service.CancelAsync(receipt.Id, Token));
+
+        Assert.Equal(DomainErrors.ReceiptCancelWindowClosed, refusal.Code);
     }
 }

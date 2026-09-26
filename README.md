@@ -150,7 +150,7 @@ em `StorageBsonSerialization`.
 | --- | --- | --- |
 | Contas | `/api/auth/*`, `/api/me`, `/api/team` | Cadastro de loja (já com árvore de categorias de mercado), login, renovação, equipe dono/funcionário |
 | Catálogo | `/api/categories`, `/api/products` | Árvore de categorias, produtos com embalagens (fardo de 12 conta 12 unidades), busca por código e nome |
-| Entrada | `/api/receipts`, `/api/suppliers` | Nota bipada linha a linha, com custo e validade; cada linha vira um lote |
+| Entrada | `/api/receipts`, `/api/suppliers` | Nota bipada linha a linha, com custo e validade; cada linha vira um lote. Pode ser desfeita por 10 minutos, enquanto nenhuma unidade dela saiu |
 | Estoque | `/api/stock/*` | Saldo por produto e por ramo, abaixo do mínimo, lotes na ordem de saída (FEFO), avaria e devolução |
 | Validade | job + `/api/stock/expiring` | A cada 6 h, no fuso de cada loja, lote vencido vira perda com o custo. Painel de 3, 7, 15 e 30 dias com o valor em risco |
 | Descontos | `/api/discounts`, `/api/products/{id}/price` | Regra por produto ou por ramo (Bebidas alcança Energéticos), prioridade, teto de cascata, janela "vence em N dias", prévia de alcance |

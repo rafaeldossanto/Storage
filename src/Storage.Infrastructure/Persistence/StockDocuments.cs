@@ -67,6 +67,33 @@ internal static class StockDocuments
 
                 break;
 
+            case GoodsReceipt receipt:
+                // Receipts from before cancelling existed have no version stored; that reads as 0.
+                var receiptAsRead = Builders<GoodsReceipt>.Filter.Eq(stored => stored.Id, receipt.Id)
+                    & Builders<GoodsReceipt>.Filter.Eq(stored => stored.TenantId, receipt.TenantId)
+                    & (expectedVersion == 0
+                        ? Builders<GoodsReceipt>.Filter.Or(
+                            Builders<GoodsReceipt>.Filter.Eq(stored => stored.Version, 0L),
+                            Builders<GoodsReceipt>.Filter.Exists(stored => stored.Version, false))
+                        : Builders<GoodsReceipt>.Filter.Eq(stored => stored.Version, expectedVersion));
+
+                var takeBack = Builders<GoodsReceipt>.Update
+                    .Set(stored => stored.Status, receipt.Status)
+                    .Set(stored => stored.CancelledBy, receipt.CancelledBy)
+                    .Set(stored => stored.CancelledAt, receipt.CancelledAt)
+                    .Set(stored => stored.Version, expectedVersion + 1);
+
+                var takenBack = await context.GoodsReceipts.UpdateOneAsync(session, receiptAsRead, takeBack, cancellationToken: cancellationToken);
+
+                if (takenBack.MatchedCount == 0)
+                {
+                    throw UseCaseException.Conflict(
+                        ErrorCodes.StockChangedConcurrently,
+                        "The receipt changed while it was being cancelled; nothing was saved.");
+                }
+
+                break;
+
             // Two people cancelling the same sale at once would put its units back twice;
             // the second finds the version moved and its whole commit is refused.
             case Sale sale:

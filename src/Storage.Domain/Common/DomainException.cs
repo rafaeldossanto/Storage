@@ -53,6 +53,8 @@ public static class DomainErrors
     public const string ReceiptAlreadyExpired = "receipt.already_expired";
     public const string ReceiptTooManyLines = "receipt.too_many_lines";
     public const string ReceiptFieldTooLong = "receipt.field_too_long";
+    public const string ReceiptNotReceived = "receipt.not_received";
+    public const string ReceiptCancelWindowClosed = "receipt.cancel_window_closed";
 
     public const string CountNotOpen = "count.not_open";
     public const string CountEmpty = "count.empty";

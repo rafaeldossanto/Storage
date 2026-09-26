@@ -26,6 +26,11 @@ public static class ReceivingEndpoints
         receipts.MapGet("/{id:guid}", (Guid id, ReceivingService service, CancellationToken cancellationToken) =>
             service.GetAsync(id, cancellationToken));
 
+        // The undo for a receipt typed wrong: ten minutes, and only while its goods are all
+        // still on the shelf.
+        receipts.MapPost("/{id:guid}/cancel", (Guid id, ReceivingService service, CancellationToken cancellationToken) =>
+            service.CancelAsync(id, cancellationToken));
+
         var suppliers = app.MapGroup("/api/suppliers").WithTags("Suppliers");
 
         suppliers.MapGet("/", (SupplierService service, CancellationToken cancellationToken) =>

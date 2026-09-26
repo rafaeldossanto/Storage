@@ -1192,6 +1192,36 @@
         }
       }
     },
+    "/api/receipts/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Receiving"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/suppliers": {
       "get": {
         "tags": [
@@ -2630,6 +2660,12 @@
           }
         }
       },
+      "GoodsReceiptStatus": {
+        "enum": [
+          "Received",
+          "Cancelled"
+        ]
+      },
       "LossByCategoryDto": {
         "required": [
           "categoryId",
@@ -2838,7 +2874,8 @@
           "CountAdjustment",
           "ReturnToSupplier",
           "Sale",
-          "SaleCancellation"
+          "SaleCancellation",
+          "ReceiptCancellation"
         ]
       },
       "PackagingDto": {
@@ -3182,7 +3219,9 @@
           "invoiceNumber",
           "note",
           "totalCostCents",
-          "lines"
+          "lines",
+          "status",
+          "cancellableUntil"
         ],
         "type": "object",
         "properties": {
@@ -3228,6 +3267,13 @@
             "items": {
               "$ref": "#/components/schemas/ReceiptLineDto"
             }
+          },
+          "status": {
+            "$ref": "#/components/schemas/GoodsReceiptStatus"
+          },
+          "cancellableUntil": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -3296,7 +3342,9 @@
           "supplierName",
           "invoiceNumber",
           "lineCount",
-          "totalCostCents"
+          "totalCostCents",
+          "status",
+          "cancellableUntil"
         ],
         "type": "object",
         "properties": {
@@ -3327,6 +3375,13 @@
           "totalCostCents": {
             "type": "integer",
             "format": "int64"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GoodsReceiptStatus"
+          },
+          "cancellableUntil": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

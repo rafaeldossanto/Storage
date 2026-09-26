@@ -36,7 +36,9 @@ public sealed record ReceiptDto(
     string? InvoiceNumber,
     string? Note,
     long TotalCostCents,
-    IReadOnlyList<ReceiptLineDto> Lines);
+    IReadOnlyList<ReceiptLineDto> Lines,
+    GoodsReceiptStatus Status,
+    DateTimeOffset CancellableUntil);
 
 public sealed record ReceiptSummaryDto(
     Guid Id,
@@ -44,7 +46,9 @@ public sealed record ReceiptSummaryDto(
     string? SupplierName,
     string? InvoiceNumber,
     int LineCount,
-    long TotalCostCents);
+    long TotalCostCents,
+    GoodsReceiptStatus Status,
+    DateTimeOffset CancellableUntil);
 
 public sealed class ReceivingService(
     IStockStore stock,
@@ -137,7 +141,50 @@ public sealed class ReceivingService(
             receipt.SupplierId is { } id ? supplierNames.GetValueOrDefault(id) : null,
             receipt.InvoiceNumber,
             receipt.Lines.Count,
-            receipt.TotalCost.Cents));
+            receipt.TotalCost.Cents,
+            receipt.Status,
+            receipt.ReceivedAt + GoodsReceipt.CancellationWindow));
+    }
+
+    /// <summary>
+    /// Takes back a receipt entered moments ago - 100 typed instead of 10. Only while every
+    /// unit it brought is still on the shelf: goods already sold, lost or counted cannot be
+    /// un-received, and the ledger keeps both movements, in and back out.
+    /// </summary>
+    public async Task<ReceiptDto> CancelAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var receipt = await stock.FindReceiptAsync(id, cancellationToken)
+            ?? throw UseCaseException.NotFound(ErrorCodes.ReceiptNotFound, $"Receipt {id} does not exist.");
+
+        var readVersion = receipt.Version;
+        var now = clock.GetUtcNow();
+        receipt.Cancel(currentUser.UserId, now);
+
+        var batches = await stock.ListBatchesByIdsAsync(receipt.Lines.Select(line => line.BatchId).ToArray(), cancellationToken);
+
+        if (batches.Count != receipt.Lines.Count
+            || batches.Any(batch => batch.Status != BatchStatus.Available || batch.RemainingQuantity != batch.InitialQuantity))
+        {
+            throw UseCaseException.Conflict(
+                ErrorCodes.ReceiptStockMoved, "Some of these goods already left the shelf; the receipt can no longer be cancelled.");
+        }
+
+        var changes = new StockChanges();
+
+        foreach (var batch in batches)
+        {
+            var quantity = batch.RemainingQuantity;
+            changes.Change(batch, returned => returned.Take(quantity));
+            changes.Record(StockMovement.Outflow(
+                MovementType.ReceiptCancellation, batch, quantity, now, currentUser.UserId, receipt.Id));
+        }
+
+        // Written only if nobody cancelled it in the meantime; a sale landing on one of its
+        // batches in between fails the batch check, and nothing is written either way.
+        changes.Update(receipt, readVersion);
+        await stock.CommitAsync(changes, cancellationToken);
+
+        return await GetAsync(receipt.Id, cancellationToken);
     }
 
     public async Task<ReceiptDto> GetAsync(Guid id, CancellationToken cancellationToken = default)
@@ -177,5 +224,7 @@ public sealed class ReceivingService(
                 line.Total.Cents,
                 line.ExpiryDate,
                 line.BatchId))
-            .ToArray());
+            .ToArray(),
+        receipt.Status,
+        receipt.ReceivedAt + GoodsReceipt.CancellationWindow);
 }

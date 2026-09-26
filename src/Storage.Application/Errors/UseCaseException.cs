@@ -73,6 +73,9 @@ public static class ErrorCodes
 
     public const string ReceiptEmpty = "receipt.empty";
     public const string ReceiptNotFound = "receipt.not_found";
+
+    /// <summary>Part of the receipt was already sold, lost or counted: it can no longer be taken back.</summary>
+    public const string ReceiptStockMoved = "receipt.stock_moved";
     public const string SupplierNotFound = "supplier.not_found";
 
     public const string DiscountNotFound = "discount.not_found";

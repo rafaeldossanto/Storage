@@ -16,6 +16,9 @@ public enum MovementType
 
     /// <summary>Units of a cancelled sale going back to the batches they left.</summary>
     SaleCancellation,
+
+    /// <summary>Units of a receipt taken back moments after it was entered - typed wrong.</summary>
+    ReceiptCancellation,
 }
 
 /// <summary>
