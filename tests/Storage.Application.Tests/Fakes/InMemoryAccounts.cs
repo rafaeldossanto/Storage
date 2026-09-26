@@ -89,6 +89,21 @@ internal sealed class InMemoryAccountStore : IAccountStore
 
     public Task UpdateSessionAsync(Session session, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+    /// <summary>Makes the next rotation lose, as if a simultaneous refresh had won it.</summary>
+    public bool LoseNextRotation { get; set; }
+
+    public Task<bool> RotateSessionAsync(Session retired, Session next, CancellationToken cancellationToken = default)
+    {
+        if (LoseNextRotation)
+        {
+            LoseNextRotation = false;
+            return Task.FromResult(false);
+        }
+
+        Sessions.Add(next);
+        return Task.FromResult(true);
+    }
+
     public Task RevokeAllSessionsAsync(Guid userId, DateTimeOffset now, CancellationToken cancellationToken = default)
     {
         foreach (var session in Sessions.Where(session => session.UserId == userId))

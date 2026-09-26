@@ -214,6 +214,18 @@ public sealed class AuthServiceTests
     }
 
     [Fact]
+    public async Task A_refresh_that_loses_the_race_to_the_same_token_ends_every_session()
+    {
+        var signedIn = await SignUpAsync();
+        _store.LoseNextRotation = true;
+
+        await Refused.WithAsync(
+            ErrorKind.Unauthorized, ErrorCodes.SessionInvalid, () => _service.RefreshAsync(signedIn.RefreshToken, Token));
+
+        Assert.All(_store.Sessions, session => Assert.True(session.IsRevoked));
+    }
+
+    [Fact]
     public async Task A_session_idle_for_thirty_days_is_over()
     {
         var signedIn = await SignUpAsync();

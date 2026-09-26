@@ -41,5 +41,12 @@ public interface IAccountStore
 
     Task UpdateSessionAsync(Session session, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Retires a session and starts the one that replaces it - only if nobody retired it
+    /// first. False when another refresh with the same token got there a moment earlier,
+    /// which is the token being used twice.
+    /// </summary>
+    Task<bool> RotateSessionAsync(Session retired, Session next, CancellationToken cancellationToken = default);
+
     Task RevokeAllSessionsAsync(Guid userId, DateTimeOffset now, CancellationToken cancellationToken = default);
 }

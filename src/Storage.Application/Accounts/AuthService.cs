@@ -141,8 +141,13 @@ public sealed class AuthService(
         var (token, hash) = RefreshTokens.Create();
         var next = session.Rotate(hash, now, policy.RefreshTokenLifetime);
 
-        await accounts.UpdateSessionAsync(session, cancellationToken);
-        await accounts.AddSessionAsync(next, cancellationToken);
+        if (!await accounts.RotateSessionAsync(session, next, cancellationToken))
+        {
+            // Another refresh with this very token got there first: the same reuse as above,
+            // only closer together.
+            await accounts.RevokeAllSessionsAsync(session.UserId, now, cancellationToken);
+            throw SessionInvalid();
+        }
 
         return Result(user, tenant, token, next);
     }

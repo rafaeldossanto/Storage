@@ -54,6 +54,28 @@ public sealed class AccountStoreTests(MongoFixture mongo)
     }
 
     [Fact]
+    public async Task Of_two_simultaneous_rotations_of_one_session_only_one_wins()
+    {
+        var db = await mongo.NewDatabaseAsync(Token);
+        var store = Store(db);
+        var ana = User.CreateStaff(Guid.CreateVersion7(), "Ana", EmailAddress.Parse("ana@loja.com"), "hash");
+        await store.AddSessionAsync(Session.Start(ana, "celular", Now, TimeSpan.FromDays(30)), Token);
+
+        // Two refreshes read the same active session before either writes.
+        var first = (await store.FindSessionByTokenHashAsync("celular", Token))!;
+        var second = (await store.FindSessionByTokenHashAsync("celular", Token))!;
+        var fromFirst = first.Rotate("depois-1", Now, TimeSpan.FromDays(30));
+        var fromSecond = second.Rotate("depois-2", Now, TimeSpan.FromDays(30));
+
+        var outcomes = await Task.WhenAll(
+            store.RotateSessionAsync(first, fromFirst, Token),
+            store.RotateSessionAsync(second, fromSecond, Token));
+
+        Assert.Single(outcomes, won => won);
+        Assert.Equal(2, await db.Sessions.CountDocumentsAsync(FilterDefinition<Session>.Empty, cancellationToken: Token));
+    }
+
+    [Fact]
     public async Task Revoking_everything_ends_only_that_persons_open_sessions()
     {
         var db = await mongo.NewDatabaseAsync(Token);

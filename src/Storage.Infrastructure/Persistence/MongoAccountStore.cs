@@ -102,6 +102,34 @@ public sealed class MongoAccountStore(MongoStorageContext context, TimeProvider 
             cancellationToken);
     }
 
+    public async Task<bool> RotateSessionAsync(Session retired, Session next, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(retired);
+        ArgumentNullException.ThrowIfNull(next);
+
+        // Compare-and-set: two refreshes carrying the same token both read it as active, and
+        // without this both would hand out a new session - the family forks, and a stolen
+        // token used in the same instant as the real one would survive. Only one retires it.
+        var stillActive = Builders<Session>.Filter.Eq(stored => stored.Id, retired.Id)
+            & Builders<Session>.Filter.Eq(stored => stored.RevokedAt, null);
+
+        var retire = Builders<Session>.Update
+            .Set(stored => stored.RevokedAt, retired.RevokedAt)
+            .Set(stored => stored.ReplacedBy, retired.ReplacedBy);
+
+        var result = await context.Sessions.UpdateOneAsync(stillActive, retire, cancellationToken: cancellationToken);
+
+        if (result.ModifiedCount == 0)
+        {
+            return false;
+        }
+
+        // Retired first, then started: a crash in between costs a sign-in, never a second
+        // live session.
+        await context.Sessions.InsertOneAsync(next, options: null, cancellationToken);
+        return true;
+    }
+
     public async Task RevokeAllSessionsAsync(
         Guid userId,
         DateTimeOffset now,
