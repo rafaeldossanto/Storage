@@ -67,6 +67,9 @@ ambiente (`Auth__SigningKey`), nunca de um arquivo versionado.
   sessões daquela pessoa, porque alguém guardou uma cópia. A troca é um compare-and-set no
   banco: de duas renovações simultâneas com o mesmo token só uma vence, e a outra conta
   como reuso. Por isso o front nunca renova duas vezes ao mesmo tempo, nem entre abas.
+  Uma tolerância: se o token recém-trocado volta em até 1 minuto e o sucessor dele nunca
+  foi usado, é o mesmo aparelho que perdeu a resposta (a página recarregou no meio, o
+  Wi-Fi caiu). Aí o sucessor é aposentado e sai um token novo, sem derrubar ninguém.
 - **Senha** com o hasher do ASP.NET Core Identity (PBKDF2, HMAC-SHA512). Hash antigo é
   atualizado no próximo login certo. Mínimo de 8 caracteres, sem regra de composição.
 - **Tentativa de adivinhar senha:** 5 erros seguidos bloqueiam a conta por 15 minutos, e

@@ -11,6 +11,9 @@ public sealed class AuthService(
     SessionPolicy policy,
     TimeProvider clock)
 {
+    /// <summary>How long after its rotation a token may come back from a device that lost the answer.</summary>
+    public static readonly TimeSpan RotationGrace = TimeSpan.FromMinutes(1);
+
     /// <summary>
     /// Creates a shop, its owner and a starting category tree, and signs the owner in.
     /// </summary>
@@ -98,9 +101,10 @@ public sealed class AuthService(
     /// Trades a refresh token for a new access token and a new refresh token.
     /// </summary>
     /// <remarks>
-    /// Rotation is strict: each refresh token works once. Two tabs refreshing with the same
-    /// token at the same instant will sign the person out, because the second use is
-    /// indistinguishable from a stolen copy - the front end refreshes from one place only.
+    /// Each refresh token works once. Two tabs refreshing with the same token at the same
+    /// instant will sign the person out, because the second use is indistinguishable from a
+    /// stolen copy - the front end refreshes from one place only. The one leniency is a token
+    /// whose new token was lost on the way back; see <see cref="ResumeLostRotationAsync"/>.
     /// </remarks>
     public async Task<AuthResult> RefreshAsync(string? refreshToken, CancellationToken cancellationToken = default)
     {
@@ -116,6 +120,11 @@ public sealed class AuthService(
 
         if (session.IsRevoked)
         {
+            if (await ResumeLostRotationAsync(session, now, cancellationToken) is { } resumed)
+            {
+                return resumed;
+            }
+
             // A retired token came back, so someone kept a copy of it. Nobody can tell the
             // owner from the thief, so every session of that person ends.
             await accounts.RevokeAllSessionsAsync(session.UserId, now, cancellationToken);
@@ -127,6 +136,40 @@ public sealed class AuthService(
             throw SessionInvalid();
         }
 
+        return await RotateAsync(session, now, cancellationToken);
+    }
+
+    /// <summary>
+    /// A token retired moments ago, whose replacement nobody has used, is far more often the
+    /// same device than a thief: the answer carrying the new token never arrived - the page
+    /// reloaded mid-request, the phone's Wi-Fi dropped. Treating that as theft would sign the
+    /// person out on every device. So within <see cref="RotationGrace"/> the unused
+    /// replacement is retired in turn and a new token issued: the family still has a single
+    /// live member, and a thief holding either copy is caught at their next use.
+    /// </summary>
+    private async Task<AuthResult?> ResumeLostRotationAsync(Session retired, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        if (retired.ReplacedBy is not { } successorId
+            || retired.RevokedAt is not { } retiredAt
+            || now - retiredAt > RotationGrace)
+        {
+            return null;
+        }
+
+        var successor = await accounts.FindSessionAsync(successorId, cancellationToken);
+
+        // Used already, or ended: the family moved on without this copy.
+        if (successor is null || !successor.IsActive(now))
+        {
+            return null;
+        }
+
+        return await RotateAsync(successor, now, cancellationToken);
+    }
+
+    /// <summary>Retires a live session in favour of a new one and signs its person in again.</summary>
+    private async Task<AuthResult> RotateAsync(Session session, DateTimeOffset now, CancellationToken cancellationToken)
+    {
         var user = await accounts.FindUserAsync(session.UserId, cancellationToken);
         var tenant = user is null ? null : await accounts.FindTenantAsync(user.TenantId, cancellationToken);
 

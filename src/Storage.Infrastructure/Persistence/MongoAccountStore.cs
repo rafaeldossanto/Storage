@@ -85,6 +85,11 @@ public sealed class MongoAccountStore(MongoStorageContext context, TimeProvider 
             .Find(Builders<Session>.Filter.Eq(session => session.TokenHash, tokenHash))
             .FirstOrDefaultAsync(cancellationToken);
 
+    public async Task<Session?> FindSessionAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await context.Sessions
+            .Find(Builders<Session>.Filter.Eq(session => session.Id, id))
+            .FirstOrDefaultAsync(cancellationToken);
+
     public async Task AddSessionAsync(Session session, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);

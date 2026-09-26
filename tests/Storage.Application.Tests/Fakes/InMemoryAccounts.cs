@@ -81,6 +81,9 @@ internal sealed class InMemoryAccountStore : IAccountStore
     public Task<Session?> FindSessionByTokenHashAsync(string tokenHash, CancellationToken cancellationToken = default) =>
         Task.FromResult(Sessions.FirstOrDefault(session => session.TokenHash == tokenHash));
 
+    public Task<Session?> FindSessionAsync(Guid id, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Sessions.FirstOrDefault(session => session.Id == id));
+
     public Task AddSessionAsync(Session session, CancellationToken cancellationToken = default)
     {
         Sessions.Add(session);

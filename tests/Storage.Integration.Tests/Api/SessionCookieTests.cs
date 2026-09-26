@@ -43,8 +43,11 @@ public sealed class SessionCookieTests(MongoFixture mongo) : IAsyncDisposable
             body: new { shopName = "Mercadinho", ownerName = "Dona", email = NewEmail(), password = Password });
         var copied = CookieOf(signUp);
 
+        // The browser moves on twice. Once would not do: a token back within a minute whose
+        // replacement was never used reads as a device that lost the answer, not as a copy.
         var renewed = await SendAsync(browser, HttpMethod.Post, "/api/auth/refresh");
         Assert.Equal(HttpStatusCode.OK, renewed.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await SendAsync(browser, HttpMethod.Post, "/api/auth/refresh")).StatusCode);
 
         // The copy is the token the browser just retired.
         var replay = new HttpRequestMessage(HttpMethod.Post, "/api/auth/refresh");
@@ -59,7 +62,32 @@ public sealed class SessionCookieTests(MongoFixture mongo) : IAsyncDisposable
         Assert.Equal(HttpStatusCode.Unauthorized, afterwards.StatusCode);
     }
 
+    [Fact]
+    public async Task A_refresh_whose_answer_was_lost_does_not_sign_the_person_out()
+    {
+        // The page reloads while a refresh is on its way: the server rotated the token, the
+        // browser never stored the new cookie and sends the old one again.
+        var browser = _api.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+        var signUp = await SendAsync(_api.CreateClient(), HttpMethod.Post, "/api/auth/sign-up",
+            body: new { shopName = "Mercadinho", ownerName = "Dona", email = NewEmail(), password = Password });
+        var kept = CookieOf(signUp);
+
+        var lost = await RefreshWithAsync(browser, kept);
+        var again = await RefreshWithAsync(browser, kept);
+
+        Assert.Equal(HttpStatusCode.OK, lost.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await RefreshWithAsync(browser, CookieOf(again))).StatusCode);
+    }
+
     public async ValueTask DisposeAsync() => await _api.DisposeAsync();
+
+    private static Task<HttpResponseMessage> RefreshWithAsync(HttpClient client, string token)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/refresh");
+        request.Headers.Add("Cookie", $"{Cookie}={token}");
+        return client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
 
     private static string CookieOf(HttpResponseMessage response)
     {

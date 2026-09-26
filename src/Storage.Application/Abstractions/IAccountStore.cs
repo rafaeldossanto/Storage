@@ -37,6 +37,8 @@ public interface IAccountStore
 
     Task<Session?> FindSessionByTokenHashAsync(string tokenHash, CancellationToken cancellationToken = default);
 
+    Task<Session?> FindSessionAsync(Guid id, CancellationToken cancellationToken = default);
+
     Task AddSessionAsync(Session session, CancellationToken cancellationToken = default);
 
     Task UpdateSessionAsync(Session session, CancellationToken cancellationToken = default);

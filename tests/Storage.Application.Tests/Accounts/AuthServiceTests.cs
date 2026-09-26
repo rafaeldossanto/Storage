@@ -199,18 +199,49 @@ public sealed class AuthServiceTests
     }
 
     [Fact]
-    public async Task A_refresh_token_that_comes_back_after_use_ends_every_session()
+    public async Task A_refresh_token_that_comes_back_after_its_replacement_was_used_ends_every_session()
     {
         var signedIn = await SignUpAsync();
-        var refreshed = await _service.RefreshAsync(signedIn.RefreshToken, Token);
+        var second = await _service.RefreshAsync(signedIn.RefreshToken, Token);
+        var third = await _service.RefreshAsync(second.RefreshToken, Token);
 
-        // The first token was used already; seeing it again means someone kept a copy.
+        // The family moved on twice; the first token back means someone kept a copy.
         await Refused.WithAsync(
             ErrorKind.Unauthorized, ErrorCodes.SessionInvalid, () => _service.RefreshAsync(signedIn.RefreshToken, Token));
 
-        // Nobody can tell owner from thief, so the legitimate new token dies too.
+        // Nobody can tell owner from thief, so the legitimate latest token dies too.
         await Refused.WithAsync(
-            ErrorKind.Unauthorized, ErrorCodes.SessionInvalid, () => _service.RefreshAsync(refreshed.RefreshToken, Token));
+            ErrorKind.Unauthorized, ErrorCodes.SessionInvalid, () => _service.RefreshAsync(third.RefreshToken, Token));
+    }
+
+    [Fact]
+    public async Task A_token_whose_new_token_never_arrived_still_works_for_a_minute()
+    {
+        var signedIn = await SignUpAsync();
+
+        // The answer with this token is lost: the page reloaded while it was on its way.
+        var lost = await _service.RefreshAsync(signedIn.RefreshToken, Token);
+        _clock.Advance(TimeSpan.FromSeconds(20));
+
+        var resumed = await _service.RefreshAsync(signedIn.RefreshToken, Token);
+
+        Assert.NotEqual(lost.RefreshToken, resumed.RefreshToken);
+        // Still one live session: the lost token was retired in favour of the new one.
+        Assert.Single(_store.Sessions, session => session.IsActive(_clock.GetUtcNow()));
+        await _service.RefreshAsync(resumed.RefreshToken, Token);
+    }
+
+    [Fact]
+    public async Task After_a_minute_a_retired_token_is_a_stolen_copy_again()
+    {
+        var signedIn = await SignUpAsync();
+        var lost = await _service.RefreshAsync(signedIn.RefreshToken, Token);
+        _clock.Advance(AuthService.RotationGrace + TimeSpan.FromSeconds(1));
+
+        await Refused.WithAsync(
+            ErrorKind.Unauthorized, ErrorCodes.SessionInvalid, () => _service.RefreshAsync(signedIn.RefreshToken, Token));
+        await Refused.WithAsync(
+            ErrorKind.Unauthorized, ErrorCodes.SessionInvalid, () => _service.RefreshAsync(lost.RefreshToken, Token));
     }
 
     [Fact]
