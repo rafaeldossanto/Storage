@@ -16,8 +16,9 @@ public sealed class ProductRepository(
     private const string BarcodeTaken = "One of these barcodes already belongs to another product.";
 
     // Alphabetical the way a person reads Portuguese. A plain byte-order sort puts every
-    // capital and accented initial after "z": "Água mineral" would come after "Suco".
-    private static readonly Collation Portuguese = new("pt");
+    // capital and accented initial after "z": "Água mineral" would come after "Suco". And
+    // numbers by value: "Refrigerante 2L" before "Refrigerante 600ml", "3" before "13".
+    private static readonly Collation Portuguese = new("pt", numericOrdering: true);
 
     private FilterDefinition<Product> OfThisShop =>
         Builders<Product>.Filter.Eq(product => product.TenantId, tenant.TenantId);

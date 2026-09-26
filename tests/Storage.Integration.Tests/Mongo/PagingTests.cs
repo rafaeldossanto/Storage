@@ -42,6 +42,26 @@ public sealed class PagingTests(MongoFixture mongo)
     }
 
     [Fact]
+    public async Task Numbers_in_names_sort_by_value()
+    {
+        var db = await mongo.NewDatabaseAsync(Token);
+        var (products, beverages) = await ShopWithBeveragesAsync(db);
+
+        string[] names = ["Refrigerante 600ml", "Açúcar 13", "Refrigerante 2L", "Açúcar 3", "Açúcar 23"];
+        for (var i = 0; i < names.Length; i++)
+        {
+            await products.AddAsync(Product.Create(
+                Shop, names[i], beverages.Id, UnitOfMeasure.Unit, Money.FromCents(500), Gtin.Parse(Barcodes[i])), Token);
+        }
+
+        var listed = await products.ListByCategoryAsync(beverages, includeDescendants: true, PageRequest.First(), Token);
+
+        Assert.Equal(
+            ["Açúcar 3", "Açúcar 13", "Açúcar 23", "Refrigerante 2L", "Refrigerante 600ml"],
+            listed.Items.Select(product => product.Name));
+    }
+
+    [Fact]
     public async Task Products_with_the_same_name_each_show_on_exactly_one_page()
     {
         var db = await mongo.NewDatabaseAsync(Token);
