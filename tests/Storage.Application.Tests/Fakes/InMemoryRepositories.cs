@@ -138,6 +138,12 @@ internal sealed class InMemoryProductRepository(ITenantContext tenant, InMemoryC
     public Task UpdateAsync(Product product, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
 
+    public Task DeleteAsync(Product product, CancellationToken cancellationToken = default)
+    {
+        _stored.Remove(product);
+        return Task.CompletedTask;
+    }
+
     private IEnumerable<Product> OfThisShop() =>
         _stored.Where(product => product.TenantId == tenant.TenantId);
 }

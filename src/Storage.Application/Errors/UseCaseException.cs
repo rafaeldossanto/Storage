@@ -57,6 +57,9 @@ public static class ErrorCodes
 
     public const string ProductNotFound = "product.not_found";
 
+    /// <summary>The product has a history - stock, a discount, a count - so it is deactivated, not deleted.</summary>
+    public const string ProductInUse = "product.in_use";
+
     public const string BarcodeInvalid = "barcode.invalid";
     public const string BarcodeTaken = "barcode.taken";
 

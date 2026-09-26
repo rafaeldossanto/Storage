@@ -177,6 +177,10 @@ internal sealed class InMemoryCountStore(ITenantContext tenant) : ICountStore
     public Task<StockCount?> FindOpenAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(Stored.FirstOrDefault(count => count.TenantId == tenant.TenantId && count.Status == StockCountStatus.Open));
 
+    public Task<bool> AnyCountedAsync(Guid productId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Stored.Any(count =>
+            count.TenantId == tenant.TenantId && count.Items.Any(item => item.ProductId == productId)));
+
     public Task<Paged<StockCount>> ListAsync(PageRequest page, CancellationToken cancellationToken = default) =>
         Task.FromResult(Paged<StockCount>.Slice(
             Stored

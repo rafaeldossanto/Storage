@@ -9,6 +9,9 @@ public interface ICountStore
 
     Task<StockCount?> FindOpenAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Whether any count, open or closed, has an item for this product.</summary>
+    Task<bool> AnyCountedAsync(Guid productId, CancellationToken cancellationToken = default);
+
     /// <summary>Counts, the most recently started first.</summary>
     Task<Paged<StockCount>> ListAsync(PageRequest page, CancellationToken cancellationToken = default);
 

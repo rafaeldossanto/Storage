@@ -104,6 +104,20 @@ public sealed class CountStoreTests(MongoFixture mongo)
     }
 
     [Fact]
+    public async Task A_product_counted_in_any_count_is_known_to_have_been_counted()
+    {
+        var db = await mongo.NewDatabaseAsync(Token);
+        var store = Store(db);
+        var count = await StartAsync(store);
+        var counted = Guid.CreateVersion7();
+        await store.SetCountedAsync(count.Id, counted, 0, Token);
+
+        Assert.True(await store.AnyCountedAsync(counted, Token));
+        Assert.False(await store.AnyCountedAsync(Guid.CreateVersion7(), Token));
+        Assert.False(await new MongoCountStore(db, new FixedTenant(Guid.CreateVersion7())).AnyCountedAsync(counted, Token));
+    }
+
+    [Fact]
     public async Task Another_shops_count_cannot_be_scanned_into()
     {
         var db = await mongo.NewDatabaseAsync(Token);

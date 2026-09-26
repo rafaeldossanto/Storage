@@ -150,9 +150,16 @@ public sealed class ProductRepository(
             BarcodeTaken);
     }
 
-    /// <summary>
-    /// Refuses to write a record belonging to another shop, even if a caller hands one over.
-    /// </summary>
+    public async Task DeleteAsync(Product product, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(product);
+        Guard(product);
+
+        await context.Products.DeleteOneAsync(
+            Builders<Product>.Filter.And(OfThisShop, Builders<Product>.Filter.Eq(stored => stored.Id, product.Id)),
+            cancellationToken);
+    }
+
     private Task<Paged<Product>> PageAsync(
         FilterDefinition<Product> filter,
         PageRequest page,
@@ -164,6 +171,9 @@ public sealed class ProductRepository(
             cancellationToken,
             new FindOptions { Collation = Portuguese });
 
+    /// <summary>
+    /// Refuses to write a record belonging to another shop, even if a caller hands one over.
+    /// </summary>
     private void Guard(Product product)
     {
         if (product.TenantId != tenant.TenantId)

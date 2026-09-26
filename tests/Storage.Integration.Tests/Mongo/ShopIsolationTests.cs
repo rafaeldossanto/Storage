@@ -117,6 +117,23 @@ public sealed class ShopIsolationTests(MongoFixture mongo)
     }
 
     [Fact]
+    public async Task Deleting_a_product_frees_its_barcode_and_cannot_reach_another_shop()
+    {
+        var db = await mongo.NewDatabaseAsync(Token);
+        var ours = NewProduct(ShopA, "7891000000014");
+        await Products(db, ShopA).AddAsync(ours, Token);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Products(db, ShopB).DeleteAsync(ours, Token));
+        Assert.NotNull(await Products(db, ShopA).FindAsync(ours.Id, Token));
+
+        await Products(db, ShopA).DeleteAsync(ours, Token);
+
+        Assert.Null(await Products(db, ShopA).FindAsync(ours.Id, Token));
+        // The unique index lets the same barcode be registered again.
+        await Products(db, ShopA).AddAsync(NewProduct(ShopA, "7891000000014"), Token);
+    }
+
+    [Fact]
     public async Task Moving_a_branch_persists_every_node_and_the_prefix_query_follows_it()
     {
         var db = await mongo.NewDatabaseAsync(Token);

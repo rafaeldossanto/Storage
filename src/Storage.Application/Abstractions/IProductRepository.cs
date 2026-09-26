@@ -40,4 +40,7 @@ public interface IProductRepository
     Task AddAsync(Product product, CancellationToken cancellationToken = default);
 
     Task UpdateAsync(Product product, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes the product for good. The caller checks nothing refers to it.</summary>
+    Task DeleteAsync(Product product, CancellationToken cancellationToken = default);
 }

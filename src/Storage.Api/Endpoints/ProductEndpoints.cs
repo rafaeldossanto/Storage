@@ -80,6 +80,17 @@ public static class ProductEndpoints
             CancellationToken cancellationToken) =>
             service.RemovePackagingAsync(id, packagingId, cancellationToken));
 
+        // Undoing a registration made by mistake. A product with any history answers 409
+        // product.in_use and is deactivated instead.
+        products.MapDelete("/{id:guid}", async (
+            Guid id,
+            ProductDeletionService service,
+            CancellationToken cancellationToken) =>
+        {
+            await service.DeleteAsync(id, cancellationToken);
+            return TypedResults.NoContent();
+        });
+
         products.MapPost("/{id:guid}/activate", (
             Guid id,
             ProductService service,
