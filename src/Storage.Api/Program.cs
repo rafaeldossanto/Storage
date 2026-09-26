@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
@@ -86,6 +87,20 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
+    // Same problem shape as every other refusal, so the screen shows a message instead of
+    // a blank failure, and says when trying again is worth it.
+    options.OnRejected = async (context, _) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            context.HttpContext.Response.Headers.RetryAfter =
+                ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+        }
+
+        await ProblemExceptionHandler.WriteAsync(
+            context.HttpContext, StatusCodes.Status429TooManyRequests, ProblemExceptionHandler.TooManyRequestsCode);
+    };
+
     // Ten attempts a minute per address on the auth routes: plenty for a person, useless
     // for a script. Behind a reverse proxy this needs forwarded headers configured, or
     // every client shares the proxy's address (task 23, deploy).
@@ -105,6 +120,11 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     // front end's generated client.
     options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
 });
+
+// A body that cannot be read throws in every environment, not only in Development, so it
+// reaches the exception handler and comes back with a code like any other refusal. The
+// default elsewhere is a bare 400 with an empty body.
+builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ProblemExceptionHandler>();

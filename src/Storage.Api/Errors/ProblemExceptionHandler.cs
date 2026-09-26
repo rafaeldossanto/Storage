@@ -26,6 +26,12 @@ public sealed class ProblemExceptionHandler(IProblemDetailsService problemDetail
     /// <summary>Signed in, but the role does not allow it - staff trying to change the team.</summary>
     public const string ForbiddenCode = "auth.forbidden";
 
+    /// <summary>Too many sign-in attempts from one address in a minute.</summary>
+    public const string TooManyRequestsCode = "auth.too_many_requests";
+
+    /// <summary>A body that is not valid JSON, or does not fit the request: a front-end bug.</summary>
+    public const string MalformedRequestCode = "request.malformed";
+
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
         Exception exception,
@@ -40,6 +46,7 @@ public sealed class ProblemExceptionHandler(IProblemDetailsService problemDetail
             UseCaseException e => (Status: StatusCodes.Status422UnprocessableEntity, e.Code),
             DomainException e => (Status: StatusCodes.Status422UnprocessableEntity, e.Code),
             MissingTenantException => (Status: StatusCodes.Status401Unauthorized, Code: NoTenantCode),
+            BadHttpRequestException => (Status: StatusCodes.Status400BadRequest, Code: MalformedRequestCode),
             _ => ((int Status, string Code)?)null,
         };
 
