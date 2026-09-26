@@ -67,6 +67,10 @@ public static class ErrorCodes
     public const string StockChangedConcurrently = "stock.changed_concurrently";
 
     public const string StockQuantityInvalid = "stock.quantity_invalid";
+
+    public const string ReceiptEmpty = "receipt.empty";
+    public const string ReceiptNotFound = "receipt.not_found";
+    public const string SupplierNotFound = "supplier.not_found";
     public const string StockNoteTooLong = "stock.note_too_long";
 
     public const string EmailTaken = "account.email_taken";

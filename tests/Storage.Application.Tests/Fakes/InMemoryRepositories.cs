@@ -82,6 +82,11 @@ internal sealed class InMemoryProductRepository(ITenantContext tenant) : IProduc
     public Task<Product?> FindAsync(Guid id, CancellationToken cancellationToken = default) =>
         Task.FromResult(OfThisShop().FirstOrDefault(product => product.Id == id));
 
+    public Task<IReadOnlyList<Product>> ListByIdsAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Product>>(OfThisShop().Where(product => ids.Contains(product.Id)).ToArray());
+
     public Task<Product?> FindByGtinAsync(Gtin gtin, CancellationToken cancellationToken = default) =>
         Task.FromResult(OfThisShop().FirstOrDefault(product => product.FindPackaging(gtin) is not null));
 

@@ -1,4 +1,5 @@
 using MongoDB.Driver;
+using Storage.Domain.Stock;
 
 namespace Storage.Infrastructure.Persistence;
 
@@ -15,9 +16,18 @@ internal static class StockDocuments
         CancellationToken cancellationToken) =>
         document switch
         {
+            GoodsReceipt receipt => context.GoodsReceipts.InsertOneAsync(
+                session, receipt, cancellationToken: cancellationToken),
+
             // A type nobody taught this switch about is a bug to find at once, not data to
             // drop on the floor.
             _ => throw new NotSupportedException(
                 $"No collection is configured for stock documents of type {document.GetType().Name}."),
         };
+
+    public static Guid TenantOf(object document) => document switch
+    {
+        GoodsReceipt receipt => receipt.TenantId,
+        _ => throw new NotSupportedException($"Unknown stock document type {document.GetType().Name}."),
+    };
 }

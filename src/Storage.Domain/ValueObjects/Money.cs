@@ -42,6 +42,17 @@ public readonly record struct Money : IComparable<Money>
     /// <summary>
     /// Multiplies by a quantity that may itself be fractional (0,350 kg of cheese).
     /// </summary>
+    /// <summary>
+    /// The share of one unit, rounded to the nearest cent: a pack of 12 that cost R$ 60,00
+    /// puts R$ 5,00 on each can. A split that does not come out even loses or gains less than
+    /// half a cent per unit.
+    /// </summary>
+    public Money DividedBy(int units)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(units, 1);
+        return new((long)Math.Round((decimal)Cents / units, 0, RetailRounding));
+    }
+
     public Money Times(decimal quantity) =>
         new((long)Math.Round(Cents * quantity, 0, RetailRounding));
 

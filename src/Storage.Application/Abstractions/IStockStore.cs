@@ -29,6 +29,11 @@ public interface IStockStore
         int limit,
         CancellationToken cancellationToken = default);
 
+    /// <summary>The most recent deliveries, newest first.</summary>
+    Task<IReadOnlyList<GoodsReceipt>> ListReceiptsAsync(int limit, CancellationToken cancellationToken = default);
+
+    Task<GoodsReceipt?> FindReceiptAsync(Guid id, CancellationToken cancellationToken = default);
+
     /// <summary>Balance, stock value and nearest expiry per product, summed in the database.</summary>
     Task<IReadOnlyDictionary<Guid, StockLevel>> LevelsAsync(
         IReadOnlyCollection<Guid> productIds,

@@ -160,6 +160,40 @@ public sealed class StockStoreTests(MongoFixture mongo)
         await Assert.ThrowsAsync<InvalidOperationException>(() => Store(db).CommitAsync(foreign, Token));
     }
 
+    [Fact]
+    public async Task A_goods_receipt_is_committed_with_its_batches_and_read_back_whole()
+    {
+        var db = await mongo.NewDatabaseAsync(Token);
+        var store = Store(db);
+        var drink = Storage.Domain.Catalog.Product.Create(Shop, "Energético 473ml", Guid.CreateVersion7(),
+            Storage.Domain.Catalog.UnitOfMeasure.Unit, Money.FromCents(899), Gtin.Parse("7891000000014"));
+        drink.AddPackaging(Gtin.Parse("17891000000011"), "Fardo 12", 12);
+
+        var receipt = GoodsReceipt.Open(Shop, supplierId: null, "NF 1234", "Entrega da manhã", Guid.CreateVersion7(), Now);
+        var batch = receipt.Receive(drink, Gtin.Parse("17891000000011"), 2, Money.FromCents(6000),
+            new DateOnly(2026, 12, 1), new DateOnly(2026, 9, 26));
+
+        var changes = new StockChanges();
+        changes.Add(batch);
+        changes.Record(StockMovement.Receipt(batch, Now, receipt.UserId, receipt.Id));
+        changes.Attach(receipt);
+
+        await store.CommitAsync(changes, Token);
+
+        var stored = await store.FindReceiptAsync(receipt.Id, Token);
+        Assert.NotNull(stored);
+        var line = Assert.Single(stored.Lines);
+        Assert.Equal(24, line.BaseUnits);
+        Assert.Equal(500, line.UnitCost.Cents);
+        Assert.Equal(Gtin.Parse("17891000000011"), line.Gtin);
+        Assert.Equal(new DateOnly(2026, 12, 1), line.ExpiryDate);
+        Assert.Equal(12000, stored.TotalCost.Cents);
+        Assert.Equal("NF 1234", stored.InvoiceNumber);
+
+        Assert.Single(await store.ListReceiptsAsync(10, Token));
+        Assert.Empty(await new MongoStockStore(db, new FixedTenant(Guid.CreateVersion7())).ListReceiptsAsync(10, Token));
+    }
+
     private static MongoStockStore Store(MongoStorageContext db) => new(db, new FixedTenant(Shop));
 
     private static StockChanges Receipt(Guid product, int quantity, long unitCostCents, DateOnly? expiry)

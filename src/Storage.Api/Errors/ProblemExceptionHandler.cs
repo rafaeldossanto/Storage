@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Storage.Api.Tenancy;
 using Storage.Application.Errors;
+using Storage.Application.Stock;
 using Storage.Domain.Common;
 
 namespace Storage.Api.Errors;
@@ -49,7 +50,16 @@ public sealed class ProblemExceptionHandler(IProblemDetailsService problemDetail
 
         httpContext.Response.StatusCode = answer.Status;
 
-        return await problemDetails.TryWriteAsync(Context(httpContext, answer.Status, answer.Code, exception.Message, exception));
+        var context = Context(httpContext, answer.Status, answer.Code, exception.Message, exception);
+
+        // Which line of a multi-line document was refused - a goods receipt, a count - so the
+        // screen can point at it instead of leaving the person to guess among forty.
+        if (exception.Data[ReceivingService.LineKey] is int line)
+        {
+            context.ProblemDetails.Extensions[ReceivingService.LineKey] = line;
+        }
+
+        return await problemDetails.TryWriteAsync(context);
     }
 
     /// <summary>Writes the same problem shape for refusals that are not exceptions.</summary>

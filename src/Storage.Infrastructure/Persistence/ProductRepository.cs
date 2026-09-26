@@ -27,6 +27,20 @@ public sealed class ProductRepository(
         return await context.Products.Find(filter).FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Product>> ListByIdsAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken = default)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await context.Products
+            .Find(Builders<Product>.Filter.And(OfThisShop, Builders<Product>.Filter.In(product => product.Id, ids)))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<Product?> FindByGtinAsync(
         Gtin gtin,
         CancellationToken cancellationToken = default)

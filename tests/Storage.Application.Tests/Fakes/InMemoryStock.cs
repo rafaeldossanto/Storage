@@ -49,6 +49,16 @@ internal sealed class InMemoryStockStore(Guid tenantId) : IStockStore
             .Take(limit)
             .ToArray());
 
+    public Task<IReadOnlyList<GoodsReceipt>> ListReceiptsAsync(int limit, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<GoodsReceipt>>(Documents.OfType<GoodsReceipt>()
+            .Where(receipt => receipt.TenantId == tenantId)
+            .OrderByDescending(receipt => receipt.ReceivedAt)
+            .Take(limit)
+            .ToArray());
+
+    public Task<GoodsReceipt?> FindReceiptAsync(Guid id, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Documents.OfType<GoodsReceipt>().FirstOrDefault(receipt => receipt.TenantId == tenantId && receipt.Id == id));
+
     public Task<IReadOnlyDictionary<Guid, StockLevel>> LevelsAsync(
         IReadOnlyCollection<Guid> productIds,
         CancellationToken cancellationToken = default)
@@ -78,4 +88,23 @@ internal sealed class InMemoryStockStore(Guid tenantId) : IStockStore
         Batches.Add(batch);
         return batch;
     }
+}
+
+internal sealed class InMemorySupplierRepository(ITenantContext tenant) : ISupplierRepository
+{
+    private readonly List<Supplier> _stored = [];
+
+    public Task<Supplier?> FindAsync(Guid id, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_stored.FirstOrDefault(supplier => supplier.TenantId == tenant.TenantId && supplier.Id == id));
+
+    public Task<IReadOnlyList<Supplier>> ListAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Supplier>>(_stored.Where(supplier => supplier.TenantId == tenant.TenantId).ToArray());
+
+    public Task AddAsync(Supplier supplier, CancellationToken cancellationToken = default)
+    {
+        _stored.Add(supplier);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateAsync(Supplier supplier, CancellationToken cancellationToken = default) => Task.CompletedTask;
 }

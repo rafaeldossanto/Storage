@@ -39,6 +39,15 @@ public static class DomainErrors
     public const string BatchCostNegative = "batch.cost_negative";
     public const string StockInsufficient = "stock.insufficient";
 
+    public const string ReceiptQuantityInvalid = "receipt.quantity_invalid";
+    public const string ReceiptExpiryRequired = "receipt.expiry_required";
+    public const string ReceiptAlreadyExpired = "receipt.already_expired";
+    public const string ReceiptTooManyLines = "receipt.too_many_lines";
+    public const string ReceiptFieldTooLong = "receipt.field_too_long";
+
+    public const string SupplierNameInvalid = "supplier.name_invalid";
+    public const string SupplierFieldTooLong = "supplier.field_too_long";
+
     public const string ShopNameInvalid = "shop.name_invalid";
     public const string ShopTimeZoneInvalid = "shop.time_zone_invalid";
 

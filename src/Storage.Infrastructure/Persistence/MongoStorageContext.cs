@@ -18,6 +18,8 @@ public sealed class MongoStorageContext
     public const string SessionsCollection = "sessions";
     public const string BatchesCollection = "batches";
     public const string StockMovementsCollection = "stockMovements";
+    public const string GoodsReceiptsCollection = "goodsReceipts";
+    public const string SuppliersCollection = "suppliers";
 
     /// <summary>
     /// Packagings live inside the product document, so the barcode index reaches into the
@@ -57,6 +59,11 @@ public sealed class MongoStorageContext
 
     public IMongoCollection<StockMovement> StockMovements =>
         Database.GetCollection<StockMovement>(StockMovementsCollection);
+
+    public IMongoCollection<GoodsReceipt> GoodsReceipts =>
+        Database.GetCollection<GoodsReceipt>(GoodsReceiptsCollection);
+
+    public IMongoCollection<Supplier> Suppliers => Database.GetCollection<Supplier>(SuppliersCollection);
 
     /// <summary>
     /// Creates the indexes the application depends on.
@@ -172,6 +179,21 @@ public sealed class MongoStorageContext
                         .Ascending(movement => movement.OccurredAt)),
             ],
             cancellationToken);
+
+        // Recent deliveries, newest first.
+        await GoodsReceipts.Indexes.CreateOneAsync(
+            new CreateIndexModel<GoodsReceipt>(
+                Builders<GoodsReceipt>.IndexKeys
+                    .Ascending(receipt => receipt.TenantId)
+                    .Descending(receipt => receipt.ReceivedAt)),
+            cancellationToken: cancellationToken);
+
+        await Suppliers.Indexes.CreateOneAsync(
+            new CreateIndexModel<Supplier>(
+                Builders<Supplier>.IndexKeys
+                    .Ascending(supplier => supplier.TenantId)
+                    .Ascending(supplier => supplier.Name)),
+            cancellationToken: cancellationToken);
     }
 
     /// <summary>

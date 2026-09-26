@@ -59,6 +59,8 @@ public static class StorageBsonSerialization
             RegisterSession();
             RegisterBatch();
             RegisterStockMovement();
+            RegisterSupplier();
+            RegisterGoodsReceipt();
 
             _registered = true;
         }
@@ -79,6 +81,38 @@ public static class StorageBsonSerialization
             map.MapIdProperty(movement => movement.Id);
             map.SetIgnoreExtraElements(true);
         });
+
+    private static void RegisterSupplier() =>
+        BsonClassMap.TryRegisterClassMap<Supplier>(map =>
+        {
+            map.AutoMap();
+            map.MapIdProperty(supplier => supplier.Id);
+            map.SetIgnoreExtraElements(true);
+        });
+
+    private static void RegisterGoodsReceipt()
+    {
+        BsonClassMap.TryRegisterClassMap<GoodsReceipt>(map =>
+        {
+            map.AutoMap();
+            map.MapIdProperty(receipt => receipt.Id);
+            map.SetIgnoreExtraElements(true);
+
+            // Lines are exposed read-only; the backing field is what gets stored.
+            map.UnmapProperty(receipt => receipt.Lines);
+            map.UnmapProperty(receipt => receipt.TotalCost);
+            map.MapField("_lines").SetElementName("Lines");
+        });
+
+        BsonClassMap.TryRegisterClassMap<ReceiptLine>(map =>
+        {
+            map.AutoMap();
+            map.SetIgnoreExtraElements(true);
+
+            // Derived: quantity times the packaging cost.
+            map.UnmapProperty(line => line.Total);
+        });
+    }
 
     private static void RegisterTenant() =>
         BsonClassMap.TryRegisterClassMap<Tenant>(map =>

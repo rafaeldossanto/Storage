@@ -57,6 +57,21 @@ public sealed class MongoStockStore(MongoStorageContext context, ITenantContext 
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<GoodsReceipt>> ListReceiptsAsync(
+        int limit,
+        CancellationToken cancellationToken = default) =>
+        await context.GoodsReceipts
+            .Find(Builders<GoodsReceipt>.Filter.Eq(receipt => receipt.TenantId, tenant.TenantId))
+            .SortByDescending(receipt => receipt.ReceivedAt)
+            .Limit(limit)
+            .ToListAsync(cancellationToken);
+
+    public async Task<GoodsReceipt?> FindReceiptAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await context.GoodsReceipts
+            .Find(Builders<GoodsReceipt>.Filter.Eq(receipt => receipt.TenantId, tenant.TenantId)
+                & Builders<GoodsReceipt>.Filter.Eq(receipt => receipt.Id, id))
+            .FirstOrDefaultAsync(cancellationToken);
+
     public async Task<IReadOnlyDictionary<Guid, StockLevel>> LevelsAsync(
         IReadOnlyCollection<Guid> productIds,
         CancellationToken cancellationToken = default)
@@ -174,7 +189,8 @@ public sealed class MongoStockStore(MongoStorageContext context, ITenantContext 
     {
         var foreign = changes.NewBatches.Any(batch => batch.TenantId != tenant.TenantId)
             || changes.ChangedBatches.Any(changed => changed.Batch.TenantId != tenant.TenantId)
-            || changes.Movements.Any(movement => movement.TenantId != tenant.TenantId);
+            || changes.Movements.Any(movement => movement.TenantId != tenant.TenantId)
+            || changes.Documents.Any(document => StockDocuments.TenantOf(document) != tenant.TenantId);
 
         if (foreign)
         {

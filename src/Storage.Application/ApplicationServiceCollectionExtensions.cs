@@ -15,6 +15,8 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<AuthService>();
         services.AddScoped<TeamService>();
         services.AddScoped<StockService>();
+        services.AddScoped<ReceivingService>();
+        services.AddScoped<SupplierService>();
 
         return services;
     }

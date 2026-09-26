@@ -7,6 +7,11 @@ public interface IProductRepository
 {
     Task<Product?> FindAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>Several products in one round trip - for screens that list many at once.</summary>
+    Task<IReadOnlyList<Product>> ListByIdsAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// The product a scanned barcode belongs to, matched against every packaging - this is
     /// the lookup the whole product hangs on.
