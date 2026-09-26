@@ -824,6 +824,25 @@
         }
       }
     },
+    "/api/stock/expiry-sweep": {
+      "post": {
+        "tags": [
+          "Stock"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpirySweepDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/stock/summary": {
       "get": {
         "tags": [
@@ -1752,6 +1771,28 @@
           "FixedAmount",
           "FixedPrice"
         ]
+      },
+      "ExpirySweepDto": {
+        "required": [
+          "batches",
+          "units",
+          "valueCents"
+        ],
+        "type": "object",
+        "properties": {
+          "batches": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "units": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "valueCents": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
       },
       "MoveCategoryRequest": {
         "required": [

@@ -41,6 +41,7 @@ public static class InfrastructureServiceCollectionExtensions
 
         // Not tenant-scoped by design: sign-in runs before the shop is known.
         services.AddScoped<IAccountStore, MongoAccountStore>();
+        services.AddScoped<ITenantDirectory, MongoTenantDirectory>();
 
         // Singleton so the decoy hash used to hide which e-mails exist is computed once.
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();

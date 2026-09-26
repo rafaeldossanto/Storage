@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Storage.Api.Auth;
 using Storage.Api.Endpoints;
 using Storage.Api.Errors;
+using Storage.Api.Jobs;
 using Storage.Api.Tenancy;
 using Storage.Application;
 using Storage.Application.Abstractions;
@@ -32,13 +33,15 @@ builder.Services.AddStoragePersistence(
     databaseName: mongo["Database"] ?? "storage");
 
 builder.Services.AddStorageApplication();
-builder.Services.AddHttpContextAccessor();
+builder.Services.AddStorageTenancy();
 
-// Every shop-scoped read takes the shop from the signed-in user's token. There is no
-// fallback shop anywhere, in any environment.
-builder.Services.AddScoped<ClaimsTenantContext>();
-builder.Services.AddScoped<ITenantContext>(provider => provider.GetRequiredService<ClaimsTenantContext>());
-builder.Services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<ClaimsTenantContext>());
+// Expired batches come off sale on their own. Not while the build writes the contract (no
+// database), and switchable off by configuration for a deployment that runs it elsewhere.
+if (!generatingOpenApiDocument && builder.Configuration.GetValue("Jobs:ExpirySweep:Enabled", true))
+{
+    builder.Services.AddSingleton<ExpirySweepJob>();
+    builder.Services.AddHostedService(provider => provider.GetRequiredService<ExpirySweepJob>());
+}
 
 var authSettings = AuthSettings.From(
     builder.Configuration,

@@ -18,6 +18,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<StockService>();
         services.AddScoped<ReceivingService>();
         services.AddScoped<StockQueries>();
+        services.AddScoped<ExpiryService>();
         services.AddScoped<PricingService>();
         services.AddScoped<SupplierService>();
 

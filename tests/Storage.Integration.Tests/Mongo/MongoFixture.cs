@@ -23,6 +23,8 @@ public sealed class MongoFixture : IAsyncLifetime
 
     private MongoClient? _client;
 
+    public string ConnectionString => _container.GetConnectionString();
+
     public MongoClient Client => _client ?? throw new InvalidOperationException("The container has not started.");
 
     public async ValueTask InitializeAsync()

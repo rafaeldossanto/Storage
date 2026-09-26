@@ -20,6 +20,11 @@ public static class StockEndpoints
         stock.MapGet("/below-minimum", (StockQueries queries, CancellationToken cancellationToken) =>
             queries.ListBelowMinimumAsync(cancellationToken));
 
+        // Runs the expiry sweep for this shop now instead of waiting for the next scheduled run.
+        stock.MapPost("/expiry-sweep", (ExpiryService service, CancellationToken cancellationToken) =>
+            service.ExpireDueAsync(cancellationToken))
+            .RequireAuthorization(TeamEndpoints.OwnerPolicy);
+
         stock.MapGet("/summary", (StockQueries queries, CancellationToken cancellationToken) =>
             queries.SummaryAsync(cancellationToken));
 
