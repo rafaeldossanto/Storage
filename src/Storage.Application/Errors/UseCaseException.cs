@@ -73,6 +73,8 @@ public static class ErrorCodes
     public const string SupplierNotFound = "supplier.not_found";
 
     public const string DiscountNotFound = "discount.not_found";
+
+    public const string ReportPeriodInvalid = "report.period_invalid";
     public const string DiscountTargetNotFound = "discount.target_not_found";
     public const string StockNoteTooLong = "stock.note_too_long";
 

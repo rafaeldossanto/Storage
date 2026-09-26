@@ -55,6 +55,17 @@ public class TenantTests
     }
 
     [Fact]
+    public void A_day_starts_at_the_shops_midnight()
+    {
+        var shop = Tenant.Create("Mercadinho");
+
+        // Midnight in São Paulo (UTC-3) is 03:00 UTC.
+        Assert.Equal(
+            new DateTimeOffset(2026, 9, 1, 3, 0, 0, TimeSpan.Zero),
+            shop.StartOf(new DateOnly(2026, 9, 1)));
+    }
+
+    [Fact]
     public void A_shop_needs_a_name()
     {
         DomainAssert.Breaks(DomainErrors.ShopNameInvalid, () => Tenant.Create("  "));

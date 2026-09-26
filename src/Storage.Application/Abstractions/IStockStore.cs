@@ -11,6 +11,9 @@ public sealed record StockLevel(Guid ProductId, int Quantity, Money Value, DateO
     public static StockLevel Empty(Guid productId) => new(productId, 0, Money.Zero, null);
 }
 
+/// <summary>Signed quantity and value of one product's movements of one type over a period.</summary>
+public sealed record MovementTotal(Guid ProductId, MovementType Type, int Quantity, Money Value);
+
 /// <summary>
 /// The stock ledger of the current shop: batches and movements.
 /// </summary>
@@ -27,6 +30,22 @@ public interface IStockStore
     Task<IReadOnlyList<StockMovement>> ListMovementsAsync(
         Guid productId,
         int limit,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Available batches expiring between two dates, inclusive - the expiry dashboard.</summary>
+    Task<IReadOnlyList<Batch>> ListExpiringBatchesAsync(
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Movements of the given types in [<paramref name="from"/>, <paramref name="to"/>),
+    /// summed per product and type in the database.
+    /// </summary>
+    Task<IReadOnlyList<MovementTotal>> SumMovementsAsync(
+        DateTimeOffset from,
+        DateTimeOffset to,
+        IReadOnlyCollection<MovementType> types,
         CancellationToken cancellationToken = default);
 
     /// <summary>The most recent deliveries, newest first.</summary>

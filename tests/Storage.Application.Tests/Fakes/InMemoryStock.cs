@@ -14,6 +14,10 @@ internal sealed class FixedCalendar(DateOnly today) : IShopCalendar
     public DateOnly Today { get; set; } = today;
 
     public Task<DateOnly> TodayAsync(CancellationToken cancellationToken = default) => Task.FromResult(Today);
+
+    // UTC midnight: the fake has no time zone of its own.
+    public Task<DateTimeOffset> StartOfDayAsync(DateOnly date, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero));
 }
 
 /// <summary>
@@ -47,6 +51,28 @@ internal sealed class InMemoryStockStore(Guid tenantId) : IStockStore
             .Where(movement => movement.TenantId == tenantId && movement.ProductId == productId)
             .OrderByDescending(movement => movement.OccurredAt)
             .Take(limit)
+            .ToArray());
+
+    public Task<IReadOnlyList<Batch>> ListExpiringBatchesAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Batch>>(Batches
+            .Where(batch => batch.TenantId == tenantId && batch.Status == BatchStatus.Available)
+            .Where(batch => batch.ExpiryDate is { } expiry && expiry >= from && expiry <= to)
+            .ToArray());
+
+    public Task<IReadOnlyList<MovementTotal>> SumMovementsAsync(
+        DateTimeOffset from,
+        DateTimeOffset to,
+        IReadOnlyCollection<MovementType> types,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<MovementTotal>>(Movements
+            .Where(movement => movement.TenantId == tenantId && types.Contains(movement.Type))
+            .Where(movement => movement.OccurredAt >= from && movement.OccurredAt < to)
+            .GroupBy(movement => (movement.ProductId, movement.Type))
+            .Select(group => new MovementTotal(
+                group.Key.ProductId,
+                group.Key.Type,
+                group.Sum(movement => movement.Quantity),
+                group.Aggregate(Money.Zero, (sum, movement) => sum + movement.Value)))
             .ToArray());
 
     public Task<IReadOnlyList<GoodsReceipt>> ListReceiptsAsync(int limit, CancellationToken cancellationToken = default) =>

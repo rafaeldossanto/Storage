@@ -66,6 +66,64 @@
         }
       }
     },
+    "/api/stock/expiring": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpiryDashboardDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/losses": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LossReportDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/sign-up": {
       "post": {
         "tags": [
@@ -1772,6 +1830,73 @@
           "FixedPrice"
         ]
       },
+      "ExpiringBatchDto": {
+        "required": [
+          "batchId",
+          "productId",
+          "productName",
+          "expiryDate",
+          "daysLeft",
+          "quantity",
+          "valueCents"
+        ],
+        "type": "object",
+        "properties": {
+          "batchId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "expiryDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "daysLeft": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "valueCents": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ExpiryDashboardDto": {
+        "required": [
+          "today",
+          "windows",
+          "batches"
+        ],
+        "type": "object",
+        "properties": {
+          "today": {
+            "type": "string",
+            "format": "date"
+          },
+          "windows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExpiryWindowDto"
+            }
+          },
+          "batches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExpiringBatchDto"
+            }
+          }
+        }
+      },
       "ExpirySweepDto": {
         "required": [
           "batches",
@@ -1791,6 +1916,149 @@
           "valueCents": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "ExpiryWindowDto": {
+        "required": [
+          "withinDays",
+          "units",
+          "valueCents"
+        ],
+        "type": "object",
+        "properties": {
+          "withinDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "units": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "valueCents": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "LossByCategoryDto": {
+        "required": [
+          "categoryId",
+          "categoryName",
+          "units",
+          "valueCents"
+        ],
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "categoryName": {
+            "type": "string"
+          },
+          "units": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "valueCents": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "LossByProductDto": {
+        "required": [
+          "productId",
+          "productName",
+          "units",
+          "valueCents"
+        ],
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "units": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "valueCents": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "LossByTypeDto": {
+        "required": [
+          "type",
+          "units",
+          "valueCents"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/MovementType"
+          },
+          "units": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "valueCents": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "LossReportDto": {
+        "required": [
+          "from",
+          "to",
+          "units",
+          "valueCents",
+          "byType",
+          "byCategory",
+          "topProducts"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "units": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "valueCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "byType": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LossByTypeDto"
+            }
+          },
+          "byCategory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LossByCategoryDto"
+            }
+          },
+          "topProducts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LossByProductDto"
+            }
           }
         }
       },
@@ -2681,6 +2949,9 @@
     },
     {
       "name": "Discounts"
+    },
+    {
+      "name": "Reports"
     },
     {
       "name": "Team"

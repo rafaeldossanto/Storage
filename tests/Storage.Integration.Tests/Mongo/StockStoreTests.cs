@@ -216,6 +216,49 @@ public sealed class StockStoreTests(MongoFixture mongo)
         Assert.Empty(await new MongoStockStore(db, new FixedTenant(Guid.CreateVersion7())).ListReceiptsAsync(10, Token));
     }
 
+    [Fact]
+    public async Task Summing_movements_over_a_period_includes_its_start_and_excludes_its_end()
+    {
+        var db = await mongo.NewDatabaseAsync(Token);
+        var store = Store(db);
+        var batch = await SeedAsync(store, Drink, 100, 500);
+
+        var start = new DateTimeOffset(2026, 9, 1, 3, 0, 0, TimeSpan.Zero);
+        var end = new DateTimeOffset(2026, 10, 1, 3, 0, 0, TimeSpan.Zero);
+
+        // Timestamps are stored as ISO text; the range has to compare them as instants.
+        var changes = new StockChanges();
+        foreach (var at in new[] { start.AddTicks(-1), start, start.AddDays(15).AddMilliseconds(250), end.AddTicks(-1), end })
+        {
+            changes.Record(StockMovement.Outflow(MovementType.DamageLoss, batch, 1, at, userId: null));
+        }
+
+        changes.Record(StockMovement.Outflow(MovementType.ReturnToSupplier, batch, 5, start.AddDays(1), userId: null));
+        await store.CommitAsync(changes, Token);
+
+        var totals = await store.SumMovementsAsync(start, end, [MovementType.DamageLoss], Token);
+
+        var damage = Assert.Single(totals);
+        Assert.Equal(-3, damage.Quantity);
+        Assert.Equal(-1500, damage.Value.Cents);
+        Assert.Equal(MovementType.DamageLoss, damage.Type);
+    }
+
+    [Fact]
+    public async Task Batches_expiring_in_a_window_are_found_inclusive_at_both_ends()
+    {
+        var db = await mongo.NewDatabaseAsync(Token);
+        var store = Store(db);
+        await SeedAsync(store, Drink, 1, 100, new DateOnly(2026, 9, 26));
+        await SeedAsync(store, Drink, 1, 100, new DateOnly(2026, 10, 26));
+        await SeedAsync(store, Drink, 1, 100, new DateOnly(2026, 10, 27));
+        await SeedAsync(store, Drink, 1, 100, expiry: null);
+
+        var expiring = await store.ListExpiringBatchesAsync(new DateOnly(2026, 9, 26), new DateOnly(2026, 10, 26), Token);
+
+        Assert.Equal(2, expiring.Count);
+    }
+
     private static MongoStockStore Store(MongoStorageContext db) => new(db, new FixedTenant(Shop));
 
     private static StockChanges Receipt(Guid product, int quantity, long unitCostCents, DateOnly? expiry)

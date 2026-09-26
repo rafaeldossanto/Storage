@@ -53,6 +53,18 @@ public sealed class Tenant : ITimestamped
         return DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, zone).DateTime);
     }
 
+    /// <summary>
+    /// The instant a calendar day begins in the shop - midnight there, expressed in UTC. A
+    /// report on "September" runs from the start of the 1st to the start of 1 October where
+    /// the shop is, not in UTC.
+    /// </summary>
+    public DateTimeOffset StartOf(DateOnly date)
+    {
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
+        var utc = TimeZoneInfo.ConvertTimeToUtc(date.ToDateTime(TimeOnly.MinValue), zone);
+        return new DateTimeOffset(utc, TimeSpan.Zero);
+    }
+
     public void Rename(string name) => Name = ValidateName(name);
 
     public void ChangeTimeZone(string timeZoneId) => TimeZoneId = ValidateTimeZone(timeZoneId);

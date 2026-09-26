@@ -42,6 +42,55 @@ public sealed class MongoStockStore(MongoStorageContext context, ITenantContext 
         return await context.Batches.Find(filter).ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Batch>> ListExpiringBatchesAsync(
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default)
+    {
+        var filter = BatchesOfThisShop
+            & Builders<Batch>.Filter.Eq(batch => batch.Status, BatchStatus.Available)
+            & Builders<Batch>.Filter.Gte(batch => batch.ExpiryDate, from)
+            & Builders<Batch>.Filter.Lte(batch => batch.ExpiryDate, to);
+
+        return await context.Batches
+            .Find(filter)
+            .SortBy(batch => batch.ExpiryDate)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<MovementTotal>> SumMovementsAsync(
+        DateTimeOffset from,
+        DateTimeOffset to,
+        IReadOnlyCollection<MovementType> types,
+        CancellationToken cancellationToken = default)
+    {
+        // OccurredAt is ISO-8601 text, always written in UTC, so a range on it compares
+        // chronologically - which is why every timestamp is stored in UTC.
+        var filter = Builders<StockMovement>.Filter.Eq(movement => movement.TenantId, tenant.TenantId)
+            & Builders<StockMovement>.Filter.In(movement => movement.Type, types)
+            & Builders<StockMovement>.Filter.Gte(movement => movement.OccurredAt, from.ToUniversalTime())
+            & Builders<StockMovement>.Filter.Lt(movement => movement.OccurredAt, to.ToUniversalTime());
+
+        var groups = await context.StockMovements
+            .Aggregate()
+            .Match(filter)
+            .Group(new BsonDocument
+            {
+                { "_id", new BsonDocument { { "ProductId", "$ProductId" }, { "Type", "$Type" } } },
+                { "Quantity", new BsonDocument("$sum", "$Quantity") },
+                { "Value", new BsonDocument("$sum", new BsonDocument("$multiply", new BsonArray { "$Quantity", "$UnitCost" })) },
+            })
+            .ToListAsync(cancellationToken);
+
+        return groups
+            .Select(group => new MovementTotal(
+                group["_id"]["ProductId"].AsBsonBinaryData.ToGuid(GuidRepresentation.Standard),
+                Enum.Parse<MovementType>(group["_id"]["Type"].AsString),
+                group["Quantity"].ToInt32(),
+                Money.FromCents(group["Value"].ToInt64())))
+            .ToArray();
+    }
+
     public async Task<IReadOnlyList<StockMovement>> ListMovementsAsync(
         Guid productId,
         int limit,

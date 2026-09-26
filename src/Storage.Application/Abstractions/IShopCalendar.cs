@@ -11,4 +11,7 @@ namespace Storage.Application.Abstractions;
 public interface IShopCalendar
 {
     Task<DateOnly> TodayAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Midnight of <paramref name="date"/> where the shop is, as an instant.</summary>
+    Task<DateTimeOffset> StartOfDayAsync(DateOnly date, CancellationToken cancellationToken = default);
 }
