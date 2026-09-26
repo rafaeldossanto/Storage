@@ -22,8 +22,8 @@ public sealed class StockQueriesTests
     public StockQueriesTests()
     {
         var tenant = new FixedTenant(Shop);
-        _products = new InMemoryProductRepository(tenant);
         _categories = new InMemoryCategoryRepository(tenant);
+        _products = new InMemoryProductRepository(tenant, _categories);
         _queries = new StockQueries(_stock, _products, _categories);
 
         _beverages = Category.CreateRoot(Shop, "Bebidas");

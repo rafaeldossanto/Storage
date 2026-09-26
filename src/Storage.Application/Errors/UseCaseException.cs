@@ -71,6 +71,9 @@ public static class ErrorCodes
     public const string ReceiptEmpty = "receipt.empty";
     public const string ReceiptNotFound = "receipt.not_found";
     public const string SupplierNotFound = "supplier.not_found";
+
+    public const string DiscountNotFound = "discount.not_found";
+    public const string DiscountTargetNotFound = "discount.target_not_found";
     public const string StockNoteTooLong = "stock.note_too_long";
 
     public const string EmailTaken = "account.email_taken";

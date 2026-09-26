@@ -129,6 +129,26 @@ public sealed class BsonMappingTests
         Assert.True(restored.IsRoot);
     }
 
+    [Fact]
+    public void A_discount_rule_keeps_its_weekdays_by_name_and_round_trips()
+    {
+        var rule = Storage.Domain.Pricing.DiscountRule.Create(Tenant, "Terça do energético",
+            Storage.Domain.Pricing.DiscountType.Percentage, 1500, Storage.Domain.Pricing.DiscountTarget.Category, Guid.CreateVersion7());
+        rule.Schedule(new DateOnly(2026, 10, 1), null, [DayOfWeek.Tuesday, DayOfWeek.Thursday]);
+        rule.LimitToExpiringWithin(3);
+
+        var document = rule.ToBsonDocument();
+        var restored = BsonSerializer.Deserialize<Storage.Domain.Pricing.DiscountRule>(document);
+
+        // A list of enums is not "top level": without the convention reaching into lists,
+        // the weekdays would be stored as 2 and 4.
+        Assert.Equal(new BsonArray { "Tuesday", "Thursday" }, document["DaysOfWeek"].AsBsonArray);
+        Assert.Equal("Percentage", document["Type"].AsString);
+        Assert.Equal([DayOfWeek.Tuesday, DayOfWeek.Thursday], restored.DaysOfWeek);
+        Assert.Equal(3, restored.ExpiringWithinDays);
+        Assert.Equal(new DateOnly(2026, 10, 1), restored.StartsOn);
+    }
+
     private static Product NewProduct()
     {
         var product = Product.Create(

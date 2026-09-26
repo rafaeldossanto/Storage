@@ -45,6 +45,12 @@ public static class DomainErrors
     public const string ReceiptTooManyLines = "receipt.too_many_lines";
     public const string ReceiptFieldTooLong = "receipt.field_too_long";
 
+    public const string DiscountNameInvalid = "discount.name_invalid";
+    public const string DiscountValueInvalid = "discount.value_invalid";
+    public const string DiscountTargetInvalid = "discount.target_invalid";
+    public const string DiscountPeriodInvalid = "discount.period_invalid";
+    public const string DiscountExpiryWindowInvalid = "discount.expiry_window_invalid";
+
     public const string SupplierNameInvalid = "supplier.name_invalid";
     public const string SupplierFieldTooLong = "supplier.field_too_long";
 

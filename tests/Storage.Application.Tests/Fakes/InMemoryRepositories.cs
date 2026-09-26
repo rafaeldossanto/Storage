@@ -73,7 +73,12 @@ internal sealed class InMemoryCategoryRepository(ITenantContext tenant) : ICateg
         _stored.Where(category => category.TenantId == tenant.TenantId);
 }
 
-internal sealed class InMemoryProductRepository(ITenantContext tenant) : IProductRepository
+/// <param name="categories">
+/// Given, listing a category with its descendants walks the tree the way the real
+/// repository does; without it only the category's own products come back.
+/// </param>
+internal sealed class InMemoryProductRepository(ITenantContext tenant, InMemoryCategoryRepository? categories = null)
+    : IProductRepository
 {
     private readonly List<Product> _stored = [];
 
@@ -107,8 +112,15 @@ internal sealed class InMemoryProductRepository(ITenantContext tenant) : IProduc
         bool includeDescendants,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<Product>>(OfThisShop()
-            .Where(product => product.CategoryId == category.Id)
+            .Where(product => InBranch(product.CategoryId, category, includeDescendants))
             .ToArray());
+
+    private bool InBranch(Guid productCategory, Category category, bool includeDescendants) =>
+        productCategory == category.Id
+        || (includeDescendants
+            && categories?.Stored.Any(stored =>
+                stored.Id == productCategory
+                && stored.Path.StartsWith(category.DescendantPathPrefix, StringComparison.Ordinal)) == true);
 
     public Task AddAsync(Product product, CancellationToken cancellationToken = default)
     {

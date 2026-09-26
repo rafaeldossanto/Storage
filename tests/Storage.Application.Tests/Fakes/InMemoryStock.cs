@@ -114,3 +114,25 @@ internal sealed class InMemorySupplierRepository(ITenantContext tenant) : ISuppl
 
     public Task UpdateAsync(Supplier supplier, CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
+
+internal sealed class InMemoryDiscountRuleRepository(ITenantContext tenant) : IDiscountRuleRepository
+{
+    private readonly List<Storage.Domain.Pricing.DiscountRule> _stored = [];
+
+    public Task<Storage.Domain.Pricing.DiscountRule?> FindAsync(Guid id, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_stored.FirstOrDefault(rule => rule.TenantId == tenant.TenantId && rule.Id == id));
+
+    public Task<IReadOnlyList<Storage.Domain.Pricing.DiscountRule>> ListAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Storage.Domain.Pricing.DiscountRule>>(_stored.Where(rule => rule.TenantId == tenant.TenantId).ToArray());
+
+    public Task<IReadOnlyList<Storage.Domain.Pricing.DiscountRule>> ListActiveAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Storage.Domain.Pricing.DiscountRule>>(_stored.Where(rule => rule.TenantId == tenant.TenantId && rule.Active).ToArray());
+
+    public Task AddAsync(Storage.Domain.Pricing.DiscountRule rule, CancellationToken cancellationToken = default)
+    {
+        _stored.Add(rule);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateAsync(Storage.Domain.Pricing.DiscountRule rule, CancellationToken cancellationToken = default) => Task.CompletedTask;
+}

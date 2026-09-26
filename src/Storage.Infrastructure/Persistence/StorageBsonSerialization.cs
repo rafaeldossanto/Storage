@@ -4,6 +4,7 @@ using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Bson.Serialization.Serializers;
 using Storage.Domain.Accounts;
 using Storage.Domain.Catalog;
+using Storage.Domain.Pricing;
 using Storage.Domain.Stock;
 using Storage.Domain.ValueObjects;
 
@@ -33,10 +34,11 @@ public static class StorageBsonSerialization
 
             // Enums by name, not by ordinal: a document read in five years should say
             // "ExpiryLoss", not 2, and reordering an enum must never rewrite history. A
-            // convention only affects class maps built after it, so it goes first.
+            // convention only affects class maps built after it, so it goes first. Not only
+            // top-level: a rule's weekdays are a list of enums and must read "Tuesday" too.
             ConventionRegistry.Register(
                 "storage-domain",
-                new ConventionPack { new EnumRepresentationConvention(BsonType.String) },
+                new ConventionPack { new EnumRepresentationConvention(BsonType.String, topLevelOnly: false) },
                 type => type.Namespace?.StartsWith("Storage.Domain", StringComparison.Ordinal) == true);
 
             // Standard UUID binary (subtype 4), the only representation that is portable
@@ -61,6 +63,7 @@ public static class StorageBsonSerialization
             RegisterStockMovement();
             RegisterSupplier();
             RegisterGoodsReceipt();
+            RegisterDiscountRule();
 
             _registered = true;
         }
@@ -113,6 +116,14 @@ public static class StorageBsonSerialization
             map.UnmapProperty(line => line.Total);
         });
     }
+
+    private static void RegisterDiscountRule() =>
+        BsonClassMap.TryRegisterClassMap<DiscountRule>(map =>
+        {
+            map.AutoMap();
+            map.MapIdProperty(rule => rule.Id);
+            map.SetIgnoreExtraElements(true);
+        });
 
     private static void RegisterTenant() =>
         BsonClassMap.TryRegisterClassMap<Tenant>(map =>

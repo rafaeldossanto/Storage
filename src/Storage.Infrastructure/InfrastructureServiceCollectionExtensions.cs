@@ -36,6 +36,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IStockStore, MongoStockStore>();
         services.AddScoped<ISupplierRepository, SupplierRepository>();
+        services.AddScoped<IDiscountRuleRepository, DiscountRuleRepository>();
         services.AddScoped<IShopCalendar, ShopCalendar>();
 
         // Not tenant-scoped by design: sign-in runs before the shop is known.

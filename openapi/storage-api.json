@@ -36,6 +36,36 @@
         }
       }
     },
+    "/api/products/{productId}/price": {
+      "get": {
+        "tags": [
+          "Discounts"
+        ],
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceQuoteDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/sign-up": {
       "post": {
         "tags": [
@@ -1110,6 +1140,193 @@
           }
         }
       }
+    },
+    "/api/discounts": {
+      "get": {
+        "tags": [
+          "Discounts"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DiscountRuleDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Discounts"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDiscountRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscountRuleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/discounts/preview": {
+      "get": {
+        "tags": [
+          "Discounts"
+        ],
+        "parameters": [
+          {
+            "name": "targetType",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DiscountTarget"
+            }
+          },
+          {
+            "name": "targetId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscountPreviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/discounts/{id}": {
+      "put": {
+        "tags": [
+          "Discounts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDiscountRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscountRuleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/discounts/{id}/activate": {
+      "post": {
+        "tags": [
+          "Discounts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscountRuleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/discounts/{id}/deactivate": {
+      "post": {
+        "tags": [
+          "Discounts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscountRuleDto"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1190,6 +1407,27 @@
           },
           "password": {
             "type": "string"
+          }
+        }
+      },
+      "AppliedDiscountDto": {
+        "required": [
+          "ruleId",
+          "ruleName",
+          "amountCents"
+        ],
+        "type": "object",
+        "properties": {
+          "ruleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ruleName": {
+            "type": "string"
+          },
+          "amountCents": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -1394,6 +1632,127 @@
           }
         }
       },
+      "DayOfWeek": {
+        "enum": [
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday"
+        ]
+      },
+      "DiscountPreviewDto": {
+        "required": [
+          "productCount",
+          "sampleNames"
+        ],
+        "type": "object",
+        "properties": {
+          "productCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sampleNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "DiscountRuleDto": {
+        "required": [
+          "id",
+          "name",
+          "type",
+          "value",
+          "targetType",
+          "targetId",
+          "startsOn",
+          "endsOn",
+          "daysOfWeek",
+          "expiringWithinDays",
+          "priority",
+          "stackable",
+          "active"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/DiscountType"
+          },
+          "value": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "targetType": {
+            "$ref": "#/components/schemas/DiscountTarget"
+          },
+          "targetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startsOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "endsOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "daysOfWeek": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayOfWeek"
+            }
+          },
+          "expiringWithinDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stackable": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DiscountTarget": {
+        "enum": [
+          "Product",
+          "Category"
+        ]
+      },
+      "DiscountType": {
+        "enum": [
+          "Percentage",
+          "FixedAmount",
+          "FixedPrice"
+        ]
+      },
       "MoveCategoryRequest": {
         "required": [
           "parentId"
@@ -1519,6 +1878,48 @@
           },
           "isInternalCode": {
             "type": "boolean"
+          }
+        }
+      },
+      "PriceQuoteDto": {
+        "required": [
+          "productId",
+          "regularPriceCents",
+          "finalPriceCents",
+          "discountCents",
+          "applied",
+          "pricedBatchExpiry"
+        ],
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "regularPriceCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "finalPriceCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "discountCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "applied": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppliedDiscountDto"
+            }
+          },
+          "pricedBatchExpiry": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
           }
         }
       },
@@ -1858,6 +2259,74 @@
           }
         }
       },
+      "SaveDiscountRuleRequest": {
+        "required": [
+          "name",
+          "type",
+          "value",
+          "targetType",
+          "targetId"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/DiscountType"
+          },
+          "value": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "targetType": {
+            "$ref": "#/components/schemas/DiscountTarget"
+          },
+          "targetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startsOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "endsOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "daysOfWeek": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/DayOfWeek"
+            }
+          },
+          "expiringWithinDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "stackable": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
       "SaveSupplierRequest": {
         "required": [
           "name"
@@ -2168,6 +2637,9 @@
     },
     {
       "name": "Auth"
+    },
+    {
+      "name": "Discounts"
     },
     {
       "name": "Team"
