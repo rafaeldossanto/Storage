@@ -43,6 +43,11 @@ mesma versão fixada (`mongo:8.0`), e cada teste usa um banco novo. São eles qu
 só o banco garante: uma loja não enxerga os dados de outra, o índice único decide a disputa
 por um código de barras, e sessões vencidas somem pelo índice TTL.
 
+Os testes em `tests/Storage.Integration.Tests/Api` sobem a API inteira em memória
+(`WebApplicationFactory`) sobre esse mesmo MongoDB. Eles fixam a lista de rotas abertas e
+a de rotas só do dono: uma rota nova que precise ser exceção quebra o teste até alguém
+acrescentá-la à lista, de propósito.
+
 Para usar, crie uma loja com `POST /api/auth/sign-up` — ela já vem com uma árvore de
 categorias de mercado — e use o token devolvido nas demais chamadas.
 
