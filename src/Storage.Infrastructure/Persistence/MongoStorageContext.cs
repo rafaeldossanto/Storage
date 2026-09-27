@@ -25,6 +25,8 @@ public sealed class MongoStorageContext
     public const string DiscountRulesCollection = "discountRules";
     public const string StockCountsCollection = "stockCounts";
     public const string SalesCollection = "sales";
+    public const string ProductPhotosCollection = "productPhotos";
+    public const string ProductPhotoFilesCollection = "productPhotoFiles";
 
     /// <summary>
     /// Packagings live inside the product document, so the barcode index reaches into the
@@ -76,6 +78,13 @@ public sealed class MongoStorageContext
     public IMongoCollection<StockCount> StockCounts => Database.GetCollection<StockCount>(StockCountsCollection);
 
     public IMongoCollection<Sale> Sales => Database.GetCollection<Sale>(SalesCollection);
+
+    /// <summary>Shared by every shop: the photo of a barcode is the same everywhere.</summary>
+    public IMongoCollection<ProductPhoto> ProductPhotos =>
+        Database.GetCollection<ProductPhoto>(ProductPhotosCollection);
+
+    internal IMongoCollection<StoredPhotoFile> ProductPhotoFiles =>
+        Database.GetCollection<StoredPhotoFile>(ProductPhotoFilesCollection);
 
     /// <summary>
     /// Creates the indexes the application depends on.
@@ -231,6 +240,14 @@ public sealed class MongoStorageContext
                 Builders<DiscountRule>.IndexKeys
                     .Ascending(rule => rule.TenantId)
                     .Ascending(rule => rule.Active)),
+            cancellationToken: cancellationToken);
+
+        // The photo worker's queue: the due codes, the longest waiting first.
+        await ProductPhotos.Indexes.CreateOneAsync(
+            new CreateIndexModel<ProductPhoto>(
+                Builders<ProductPhoto>.IndexKeys
+                    .Ascending(photo => photo.Status)
+                    .Ascending(photo => photo.NextAttemptAt)),
             cancellationToken: cancellationToken);
 
         await Suppliers.Indexes.CreateOneAsync(

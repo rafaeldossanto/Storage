@@ -67,6 +67,7 @@ public static class StorageBsonSerialization
             RegisterDiscountRule();
             RegisterStockCount();
             RegisterSale();
+            RegisterProductPhoto();
 
             _registered = true;
         }
@@ -87,6 +88,24 @@ public static class StorageBsonSerialization
             map.MapIdProperty(movement => movement.Id);
             map.SetIgnoreExtraElements(true);
         });
+
+    /// <summary>The code is the key: one photo per barcode, for the whole platform.</summary>
+    private static void RegisterProductPhoto()
+    {
+        BsonClassMap.TryRegisterClassMap<ProductPhoto>(map =>
+        {
+            map.AutoMap();
+            map.MapIdProperty(photo => photo.Gtin);
+            map.SetIgnoreExtraElements(true);
+        });
+
+        BsonClassMap.TryRegisterClassMap<StoredPhotoFile>(map =>
+        {
+            map.AutoMap();
+            map.MapIdProperty(file => file.Gtin);
+            map.SetIgnoreExtraElements(true);
+        });
+    }
 
     private static void RegisterSupplier() =>
         BsonClassMap.TryRegisterClassMap<Supplier>(map =>

@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
 using Storage.Application.Abstractions;
 using Storage.Infrastructure.Persistence;
+using Storage.Infrastructure.Photos;
 using Storage.Infrastructure.Security;
 
 namespace Storage.Infrastructure;
@@ -41,12 +42,43 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<ISaleStore, MongoSaleStore>();
         services.AddScoped<IShopCalendar, ShopCalendar>();
 
+        // Not tenant-scoped by design: the photo of a barcode is the same in every shop.
+        services.AddSingleton<IProductPhotoStore, MongoProductPhotoStore>();
+
         // Not tenant-scoped by design: sign-in runs before the shop is known.
         services.AddScoped<IAccountStore, MongoAccountStore>();
         services.AddScoped<ITenantDirectory, MongoTenantDirectory>();
 
         // Singleton so the decoy hash used to hide which e-mails exist is computed once.
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers where product photos are looked up and how they are cut out. The caller
+    /// supplies the options, read from its configuration.
+    /// </summary>
+    public static IServiceCollection AddStorageProductPhotos(this IServiceCollection services, ProductPhotoOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        services.AddSingleton(options);
+
+        services.AddHttpClient<IProductPhotoSource, OpenFoodFactsPhotoSource>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(20);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(options.UserAgent);
+        });
+
+        // The model when it is on disk; otherwise only photos shot on a plain backdrop get
+        // cut out, and the rest are placed on white whole.
+        services.AddSingleton<IBackgroundCutter>(_ =>
+            options.CutoutModelPath is { } model && File.Exists(model)
+                ? new IsnetBackgroundCutter(model)
+                : new SolidBackdropCutter());
+
+        services.AddSingleton<IPackshotStudio, PackshotStudio>();
 
         return services;
     }

@@ -16,12 +16,15 @@ public sealed class RouteProtectionTests(MongoFixture mongo) : IAsyncDisposable
     private readonly StorageApiFactory _api = new(mongo);
 
     [Fact]
-    public void Only_the_front_door_is_open_without_signing_in()
+    public void Only_the_front_door_and_the_product_photos_are_open_without_signing_in()
     {
         var open = Routes(endpoint => endpoint.Metadata.GetMetadata<IAllowAnonymous>() is not null);
 
+        // The photos because an <img> tag cannot send the access token - and the photo of
+        // a public package says nothing about any shop.
         Assert.Equal(
             [
+                "GET /api/product-photos/{gtin}",
                 "GET /health",
                 "GET /openapi/{documentName}.json",
                 "POST /api/auth/refresh",

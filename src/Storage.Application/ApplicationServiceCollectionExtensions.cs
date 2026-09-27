@@ -15,6 +15,7 @@ public static class ApplicationServiceCollectionExtensions
         // Scoped, like the repositories they use: each request serves exactly one shop.
         services.AddScoped<CategoryService>();
         services.AddScoped<ProductService>();
+        services.AddScoped<ProductPhotoService>();
         services.AddScoped<ProductDeletionService>();
         services.AddScoped<AuthService>();
         services.AddScoped<TeamService>();

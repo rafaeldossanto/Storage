@@ -8,8 +8,17 @@
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="10.0.12" />
     <PackageVersion Include="MongoDB.Driver" Version="3.12.0" />
+  </ItemGroup>
+  <!-- Product photos: the model that cuts the package out of its background runs in ONNX
+       Runtime; SkiaSharp decodes, composes on white and encodes WebP. Both MIT. The Linux
+       assets are the ones a container needs, without system font libraries. -->
+  <ItemGroup Label="Photos">
+    <PackageVersion Include="Microsoft.ML.OnnxRuntime" Version="1.30.0" />
+    <PackageVersion Include="SkiaSharp" Version="4.152.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.152.1" />
     <PackageVersion Include="Testcontainers.MongoDb" Version="4.15.0" />
   </ItemGroup>
   <!-- xUnit v3 runs on Microsoft.Testing.Platform and carries its own runner, so there is

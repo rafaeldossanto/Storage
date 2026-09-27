@@ -150,6 +150,7 @@ em `StorageBsonSerialization`.
 | --- | --- | --- |
 | Contas | `/api/auth/*`, `/api/me`, `/api/team` | Cadastro de loja (já com árvore de categorias de mercado), login, renovação, equipe dono/funcionário |
 | Catálogo | `/api/categories`, `/api/products` | Árvore de categorias, produtos com embalagens (fardo de 12 conta 12 unidades), busca por código e nome |
+| Fotos | job + `/api/product-photos/{gtin}` | A foto de cada código de barras, buscada sozinha no Open Food Facts, recortada e posta no branco, uma vez para todas as lojas |
 | Entrada | `/api/receipts`, `/api/suppliers` | Nota bipada linha a linha, com custo e validade; cada linha vira um lote. Pode ser desfeita por 10 minutos, enquanto nenhuma unidade dela saiu |
 | Estoque | `/api/stock/*` | Saldo por produto e por ramo, abaixo do mínimo, lotes na ordem de saída (FEFO), avaria e devolução |
 | Validade | job + `/api/stock/expiring` | A cada 6 h, no fuso de cada loja, lote vencido vira perda com o custo. Painel de 3, 7, 15 e 30 dias com o valor em risco |
@@ -168,6 +169,31 @@ PIN e recebe um passe de 15 minutos, que vai no cabeçalho `X-Sales-Access` e s�
 quem o recebeu. Cinco PINs errados seguidos trancam a área por 15 minutos, e aí nem o PIN
 certo abre. A contagem de erros é gravada com compare-and-set, então duas tentativas ao
 mesmo tempo contam como duas.
+
+**Fotos dos produtos.** Ninguém tira nem envia foto: cadastrou a Coca lata, a foto vem
+sozinha, pelo código de barras.
+
+- **De onde vem.** O job procura no Open Food Facts e nas bases irmãs (Open Beauty Facts e
+  Open Products Facts, para higiene e limpeza). As fotos têm licença CC BY-SA 3.0: uso
+  comercial liberado, desde que a fonte seja creditada. Por isso cada foto guarda de onde
+  veio, e a tela mostra o crédito.
+- **Uma foto por código, para a plataforma toda.** A foto não pertence à loja: a mesma lata
+  é buscada, recortada e guardada uma vez só. Consertar uma foto ruim conserta para todas as
+  lojas. Código interno, como o de etiqueta de balança, nunca ganha foto.
+- **Em segundo plano.** O cadastro não espera: o produto nasce com monograma e ganha a foto
+  segundos depois. Código que nenhuma base conhece é procurado de novo depois de 30 dias.
+  Falha de rede é tentada de novo em 1 min, 10 min, 1 h, 6 h e depois uma vez por dia. Ao
+  subir, o job também pede a foto dos produtos cadastrados antes de as fotos existirem.
+- **O recorte.** A foto fica num quadrado branco de 640 px, em WebP de 10 a 20 KB, servida
+  com cache de um ano, porque o endereço muda quando a foto muda. O recorte tem dois
+  caminhos:
+  - **Com o modelo ISNet** (`isnet-general-use.onnx`, 178 MB, licença Apache 2.0, do
+    [release do rembg](https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-general-use.onnx)):
+    recorta o produto de qualquer fundo. O arquivo vai em `src/Storage.Api/models/`
+    (ignorado pelo git), ou no caminho de `ProductPhotos:CutoutModelPath`.
+  - **Sem o modelo:** só a foto tirada em fundo liso (preto, cinza ou branco de estúdio) é
+    recortada, a partir das bordas. A foto com fundo irregular vai inteira para o branco.
+    O log de partida diz qual dos dois está valendo.
 
 ## Estado
 

@@ -30,6 +30,7 @@ public sealed class StorageApiFactory(MongoFixture mongo, int authPermitsPerMinu
     {
         builder.UseEnvironment("Development");
         builder.UseSetting("Jobs:ExpirySweep:Enabled", "false");
+        builder.UseSetting("Jobs:ProductPhotos:Enabled", "false");
         builder.UseSetting(
             "RateLimiting:AuthPermitsPerMinute", authPermitsPerMinute.ToString(CultureInfo.InvariantCulture));
 

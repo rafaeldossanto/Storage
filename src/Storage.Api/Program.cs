@@ -15,6 +15,7 @@ using Storage.Application.Accounts;
 using Storage.Domain.Accounts;
 using Storage.Infrastructure;
 using Storage.Infrastructure.Persistence;
+using Storage.Infrastructure.Photos;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +36,25 @@ builder.Services.AddStoragePersistence(
 
 builder.Services.AddStorageApplication();
 builder.Services.AddStorageTenancy();
+
+// Product photos: looked up by barcode in Open Food Facts, cut out and stored once for
+// every shop. The model path is relative to the content root; without the file there,
+// only photos shot on a plain backdrop are cut out.
+var photos = builder.Configuration.GetSection("ProductPhotos");
+
+builder.Services.AddStorageProductPhotos(new ProductPhotoOptions
+{
+    CutoutModelPath = Path.Combine(
+        builder.Environment.ContentRootPath,
+        photos["CutoutModelPath"] ?? Path.Combine("models", "isnet-general-use.onnx")),
+});
+
+// The photos come in on their own, in the background. Off while the build writes the
+// contract, and switchable off for tests or a deployment that runs it elsewhere.
+if (!generatingOpenApiDocument && builder.Configuration.GetValue("Jobs:ProductPhotos:Enabled", true))
+{
+    builder.Services.AddHostedService<ProductPhotoJob>();
+}
 
 // Expired batches come off sale on their own. Not while the build writes the contract (no
 // database), and switchable off by configuration for a deployment that runs it elsewhere.
@@ -116,6 +136,14 @@ builder.Services.AddRateLimiter(options =>
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions { PermitLimit = permits, Window = TimeSpan.FromMinutes(1) });
     });
+
+    // The one open route that reads the database. A screen full of products asks for a few
+    // dozen photos, once, then keeps them cached; 600 a minute per address is far above
+    // that and far below what would hurt.
+    options.AddPolicy(ProductPhotoEndpoints.RateLimitPolicy, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 600, Window = TimeSpan.FromMinutes(1) }));
 });
 
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -169,6 +197,7 @@ app.MapAuthEndpoints();
 app.MapTeamEndpoints();
 app.MapCategoryEndpoints();
 app.MapProductEndpoints();
+app.MapProductPhotoEndpoints();
 app.MapStockEndpoints();
 app.MapReceivingEndpoints();
 app.MapDiscountEndpoints();

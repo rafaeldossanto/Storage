@@ -1,8 +1,10 @@
+using Storage.Application.Abstractions;
 using Storage.Application.Catalog;
 using Storage.Application.Errors;
 using Storage.Application.Tests.Fakes;
 using Storage.Domain.Catalog;
 using Storage.Domain.Common;
+using Storage.Domain.ValueObjects;
 
 namespace Storage.Application.Tests.Catalog;
 
@@ -13,6 +15,7 @@ public sealed class ProductServiceTests
     private const string OtherBarcode = "7891000000021";
 
     private readonly InMemoryCategoryRepository _categories;
+    private readonly InMemoryProductPhotoStore _photos = new(TimeProvider.System);
     private readonly ProductService _service;
     private readonly Category _beverages;
 
@@ -20,7 +23,7 @@ public sealed class ProductServiceTests
     {
         var tenant = new FixedTenant(Guid.CreateVersion7());
         _categories = new InMemoryCategoryRepository(tenant);
-        _service = new ProductService(new InMemoryProductRepository(tenant), _categories, tenant);
+        _service = new ProductService(new InMemoryProductRepository(tenant), _categories, tenant, _photos);
 
         _beverages = Category.CreateRoot(tenant.TenantId, "Bebidas");
         _categories.Seed(_beverages);
@@ -146,6 +149,84 @@ public sealed class ProductServiceTests
         var refusal = await Assert.ThrowsAsync<DomainException>(() => CreateAsync(CanBarcode, priceCents: -1));
 
         Assert.Equal(DomainErrors.ProductPriceNegative, refusal.Code);
+    }
+
+    [Fact]
+    public async Task Registering_a_product_asks_for_its_photo_without_waiting_for_it()
+    {
+        var created = await CreateAsync(CanBarcode);
+
+        Assert.Null(created.Photo);
+        Assert.Equal(ProductPhotoStatus.Pending, _photos.Photos[Gtin.Parse(CanBarcode)].Status);
+    }
+
+    [Fact]
+    public async Task A_new_pack_asks_for_its_photo_too()
+    {
+        var created = await CreateAsync(CanBarcode);
+
+        await _service.AddPackagingAsync(created.Id, new AddPackagingRequest(PackBarcode, "Fardo 12", 12), Token);
+
+        Assert.True(_photos.Photos.ContainsKey(Gtin.Parse(PackBarcode)));
+    }
+
+    [Fact]
+    public async Task A_product_carries_the_photo_of_its_can_with_a_versioned_address_and_the_credit()
+    {
+        var created = await CreateAsync(CanBarcode);
+        await ReadyAsync(CanBarcode, "v1");
+
+        var found = await _service.FindByBarcodeAsync(CanBarcode, Token);
+
+        Assert.Equal($"/api/product-photos/0{CanBarcode}?v=v1", found.Photo!.Url);
+        Assert.Equal("Open Food Facts", found.Photo.Source);
+        Assert.Equal("CC BY-SA 3.0", found.Photo.License);
+        Assert.Equal(created.Id, found.Id);
+    }
+
+    [Fact]
+    public async Task Without_a_photo_of_the_can_the_packs_photo_stands_in()
+    {
+        var created = await CreateAsync(CanBarcode);
+        await _service.AddPackagingAsync(created.Id, new AddPackagingRequest(PackBarcode, "Fardo 12", 12), Token);
+        await ReadyAsync(PackBarcode, "pack");
+
+        var found = await _service.GetAsync(created.Id, Token);
+
+        Assert.EndsWith("?v=pack", found.Photo!.Url, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_page_of_products_carries_each_ones_photo()
+    {
+        await CreateAsync(CanBarcode);
+        await CreateAsync(OtherBarcode, name: "Refrigerante 2L");
+        await ReadyAsync(OtherBarcode, "soda");
+
+        var page = await _service.SearchAsync("e", PageRequest.First(), Token);
+
+        Assert.Null(page.Items.Single(product => product.Name == "Energético 473ml").Photo);
+        Assert.NotNull(page.Items.Single(product => product.Name == "Refrigerante 2L").Photo);
+    }
+
+    [Fact]
+    public async Task A_code_the_shop_minted_asks_for_no_photo()
+    {
+        var weighed = "200000100000" + Gtin.CalculateCheckDigit("200000100000");
+
+        await CreateAsync(weighed);
+
+        Assert.Empty(_photos.Photos);
+    }
+
+    /// <summary>The photo of a code, as the worker leaves it once stored.</summary>
+    private async Task ReadyAsync(string barcode, string version)
+    {
+        var gtin = Gtin.Parse(barcode);
+        await _photos.RequestAsync([gtin], Token);
+        var photo = _photos.Photos[gtin];
+        photo.Store(version, "Open Food Facts", $"https://world.openfoodfacts.org/product/{barcode}", "CC BY-SA 3.0", DateTimeOffset.UtcNow);
+        await _photos.SaveAsync(photo, new PhotoFile(version, "image/webp", [1]), Token);
     }
 
     private Task<ProductDto> CreateAsync(

@@ -37,3 +37,7 @@ Thumbs.db
 
 # Local development database folder
 .data/
+
+# The background-cutout model (ISNet, ~180 MB): downloaded next to the API, never versioned
+models/
+*.onnx

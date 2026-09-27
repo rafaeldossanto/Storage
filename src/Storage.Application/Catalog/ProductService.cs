@@ -8,10 +8,11 @@ namespace Storage.Application.Catalog;
 public sealed class ProductService(
     IProductRepository products,
     ICategoryRepository categories,
-    ITenantContext tenant)
+    ITenantContext tenant,
+    IProductPhotoStore photos)
 {
     public async Task<ProductDto> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
-        (await RequireAsync(id, cancellationToken)).ToDto();
+        await ToDtoAsync(await RequireAsync(id, cancellationToken), cancellationToken);
 
     /// <summary>
     /// The product a scanned code belongs to.
@@ -31,14 +32,14 @@ public sealed class ProductService(
                 ErrorCodes.ProductNotFound,
                 $"No product answers to barcode {gtin.ToDisplay()}.");
 
-        return product.ToDto();
+        return await ToDtoAsync(product, cancellationToken);
     }
 
     public async Task<Paged<ProductDto>> SearchAsync(
         string term,
         PageRequest page,
         CancellationToken cancellationToken = default) =>
-        (await products.SearchAsync(term, page, cancellationToken)).Map(product => product.ToDto());
+        await ToDtosAsync(await products.SearchAsync(term, page, cancellationToken), cancellationToken);
 
     public async Task<Paged<ProductDto>> ListByCategoryAsync(
         Guid categoryId,
@@ -48,8 +49,9 @@ public sealed class ProductService(
     {
         var category = await RequireCategoryAsync(categoryId, cancellationToken);
 
-        return (await products.ListByCategoryAsync(category, includeDescendants, page, cancellationToken))
-            .Map(product => product.ToDto());
+        return await ToDtosAsync(
+            await products.ListByCategoryAsync(category, includeDescendants, page, cancellationToken),
+            cancellationToken);
     }
 
     public async Task<ProductDto> CreateAsync(
@@ -74,7 +76,13 @@ public sealed class ProductService(
         product.SetExpiryTracking(request.TracksExpiry);
 
         await products.AddAsync(product, cancellationToken);
-        return product.ToDto();
+
+        // Looked up in the background; the product is registered without waiting for it.
+        // Another shop may have registered the same can already, and then the answer
+        // below carries its photo straight away.
+        await photos.RequestAsync(CatalogMappings.PhotoCodes([product]), cancellationToken);
+
+        return await ToDtoAsync(product, cancellationToken);
     }
 
     public async Task<ProductDto> UpdateAsync(
@@ -98,7 +106,7 @@ public sealed class ProductService(
         product.SetExpiryTracking(request.TracksExpiry);
 
         await products.UpdateAsync(product, cancellationToken);
-        return product.ToDto();
+        return await ToDtoAsync(product, cancellationToken);
     }
 
     public async Task<ProductDto> AddPackagingAsync(
@@ -118,7 +126,9 @@ public sealed class ProductService(
         product.AddPackaging(gtin, request.Name, request.ConversionFactor);
 
         await products.UpdateAsync(product, cancellationToken);
-        return product.ToDto();
+        await photos.RequestAsync(CatalogMappings.PhotoCodes([product]), cancellationToken);
+
+        return await ToDtoAsync(product, cancellationToken);
     }
 
     public async Task<ProductDto> RemovePackagingAsync(
@@ -130,7 +140,7 @@ public sealed class ProductService(
         product.RemovePackaging(packagingId);
 
         await products.UpdateAsync(product, cancellationToken);
-        return product.ToDto();
+        return await ToDtoAsync(product, cancellationToken);
     }
 
     public async Task<ProductDto> ActivateAsync(Guid id, CancellationToken cancellationToken = default)
@@ -139,7 +149,7 @@ public sealed class ProductService(
         product.Activate();
 
         await products.UpdateAsync(product, cancellationToken);
-        return product.ToDto();
+        return await ToDtoAsync(product, cancellationToken);
     }
 
     public async Task<ProductDto> DeactivateAsync(Guid id, CancellationToken cancellationToken = default)
@@ -148,7 +158,17 @@ public sealed class ProductService(
         product.Deactivate();
 
         await products.UpdateAsync(product, cancellationToken);
-        return product.ToDto();
+        return await ToDtoAsync(product, cancellationToken);
+    }
+
+    private async Task<ProductDto> ToDtoAsync(Product product, CancellationToken cancellationToken) =>
+        product.ToDto(await photos.FindReadyAsync(CatalogMappings.PhotoCodes([product]), cancellationToken));
+
+    /// <summary>One lookup for the photos of the whole page, not one per product.</summary>
+    private async Task<Paged<ProductDto>> ToDtosAsync(Paged<Product> page, CancellationToken cancellationToken)
+    {
+        var ready = await photos.FindReadyAsync(CatalogMappings.PhotoCodes(page.Items), cancellationToken);
+        return page.Map(product => product.ToDto(ready));
     }
 
     private static Gtin ParseBarcode(string? barcode) =>

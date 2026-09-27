@@ -35,6 +35,10 @@ public sealed record PackagingDto(
     bool IsDefault,
     bool IsInternalCode);
 
+/// <param name="Photo">
+/// Null until the photo of one of the product's codes is ready - just registered, not
+/// found anywhere, or a code the shop minted itself. The screen shows the monogram then.
+/// </param>
 public sealed record ProductDto(
     Guid Id,
     string Name,
@@ -45,8 +49,19 @@ public sealed record ProductDto(
     bool TracksExpiry,
     bool Active,
     IReadOnlyList<PackagingDto> Packagings,
+    ProductPhotoDto? Photo,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
+
+/// <param name="Url">
+/// Relative to the API: <c>/api/product-photos/{gtin}?v={version}</c>. The version changes
+/// with the picture, so the address can be cached for good.
+/// </param>
+/// <param name="Source">Who to credit, as the licence asks: "Open Food Facts".</param>
+public sealed record ProductPhotoDto(string Url, string Source, string SourcePage, string License)
+{
+    public const string Route = "/api/product-photos";
+}
 
 public sealed record CreateProductRequest(
     string Name,
